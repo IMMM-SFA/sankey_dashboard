@@ -35,7 +35,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           branch: gh-pages
-          directory: build
+          directory: sankey_dashboard/build
           force: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
