@@ -15,7 +15,7 @@
         'rcp85cooler_ssp3', 'rcp85cooler_ssp5', 
         'rcp85hotter_ssp3', 'rcp85hotter_ssp5', 
     ];
-    let selectedScenario = scenarios[4];
+    let selectedScenario = scenarios[0];
 
     // data is now fetched in a svelte-like way; see below
     let data;
@@ -152,7 +152,13 @@
 <!-- Svelte will always rerender the html when variables change reactively -->
 <div id="sankeyWrapper">
 
+    <div class="flex flex-row w-screen leading-normal font-light h-16 pl-8 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+        
+        <p>Select a scenario to update the diagram</p>
+    
+    
     <!-- the `bind:value` svelte construct causes `selectedScenario` to always reflect the selected value -->
+    
     <select
         id="scenarioSelector"
         bind:value={selectedScenario}
@@ -161,6 +167,7 @@
             <option value={s}>{s}</option>
         {/each}
     </select>
+</div>
 
     <!-- the Plotly looks for this id; this is non-svelte-like but we can do it anyway -->
     <div id="sankeyDiagram"></div>
@@ -185,5 +192,7 @@
     }
     #scenarioSelector {
         width: 256px;
+        border: 1px solid black ;
+        border-radius: 4px;
     }
 </style>

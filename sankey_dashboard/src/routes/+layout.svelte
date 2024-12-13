@@ -1,27 +1,18 @@
-
-
 <script>
-    // this variable will be important if deploying to a non-root url,
-    // such as with github pages when you don't have a custom domain;
-    // defined in `svelte.config.js`
+	import '../app.css';
+	// this variable will be important if deploying to a non-root url,
+	// such as with github pages when you don't have a custom domain;
+	// defined in `svelte.config.js`
 	import { base } from '$app/paths';
-    const nav_items = ["home", "about"] ;
+	import { Navbar, NavBrand, NavLi, NavUl, NavHamburger } from 'flowbite-svelte';
+	const nav_items = ['IM3 Sankey Diagrams', 'about'];
 </script>
 
-<div id="navbar"> 
-
+<div class="flex flex-row w-screen h-16 pl-8 bg-[#2B7F9E] items-center gap-8 text-white">
+    
     {#each nav_items as item}
-        <a href="{base}/{item === "home" ? '' : item}">{item}</a>
+        <a href="{base}/{item === "IM3 Sankey Diagrams" ? '' : item}">{item.toUpperCase()}</a>
     {/each}
-
 </div>
 
-<slot/>
-
-<style>
-    #navbar {
-        display: flex;
-        flex-direction: row;
-        gap: 2rem;
-    }
-</style>
+<slot></slot>
