@@ -232,7 +232,7 @@
 <div class="flex flex-row">
 
 <div id='scenarioSelectionBar'
-  class="relative flex h-full w-full max-w-[22rem] p-8 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2">
+  class="relative flex h-full w-full max-w-[21rem] p-7 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2 drop-shadow-xl">
   <div class="p-2 mb-2">
     <h5 class="block font-sans text-xl antialiased font-semibold leading-snug tracking-normal text-blue-gray-900">
       Scenario Selection

@@ -26,8 +26,9 @@
       Acknowledgements
     </h1>
     <h2 class="mb-7 text-slate-800 text-xl font-light">
-      This work was developed at Pacific Northwest National Laboratory with funding by the US Department of Energy 
-      Water Power Technologies Office (WPTO) and U.S. Department of Energy's Office of Science as part of research in
+      This work was developed by Pacific Northwest National Laboratory as part of the <a href="https://www.pnnl.gov/projects/integrated-water-power-resilience-project" class='text-[#2B7F9E]'>Integrated Water Power Resilience Project </a> 
+      with funding by the <a href="https://www.energy.gov/eere/water/water-power-technologies-office" class='text-[#2B7F9E]'> 
+        U.S. Department of Energy Water Power Technologies Office (WPTO) </a>  and the <a href="https://www.energy.gov/science/office-science" class='text-[#2B7F9E]'>U.S. Department of Energy Office of Science </a> as part of research in
        MultiSector Dynamics, Earth and Environmental Systems Modeling Program. 
       </h2>
     
