@@ -5,7 +5,7 @@
 	// defined in `svelte.config.js`
 	import { base } from '$app/paths';
 	import { Navbar, NavBrand, NavLi, NavUl, NavHamburger } from 'flowbite-svelte';
-	const nav_items = ['Water-Energy Sankey Diagrams for the United States'];
+	const nav_items = ['Energy-Water Sankey Diagrams for the United States'];
 	const page_items = ['diagrams', 'methodology', 'data', 'publications', 'acknowledgements'];
 
 	import Icon from "@iconify/svelte";
@@ -13,7 +13,7 @@
 
 <div class="flex flex-row w-screen font-sans h-[120px] pl-8  bg-gradient-to-r from-[#2B7F9E] to-[#5e1f04] items-center gap-8 text-white text-3xl">	
 
-        <a href="{base}/">Water-Energy Sankey Diagrams for the United States</a>
+        <a href="{base}/">Energy-Water Sankey Diagrams for the United States</a>
 		<img src="PNNLVerticalLogo.png" alt="card-image" class='h-[100px] ml-auto pr-7'/>
 
 </div>
