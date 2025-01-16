@@ -13,7 +13,7 @@
 
 <div class="flex flex-row w-screen font-sans h-[120px] pl-8  bg-gradient-to-r from-[#2B7F9E] to-[#5e1f04] items-center gap-8 text-white text-3xl">	
 
-	<a href="{base}/">Energy-Water Flows for the United States over the 21st Century</a>
+	<a href="{base}/">Integrated Energy-Water Flows for the United States over the 21st Century</a>
 	<img src="PNNLVerticalLogo.png" alt="card-image" class='h-[100px] ml-auto pr-7'/>
 
 </div>
