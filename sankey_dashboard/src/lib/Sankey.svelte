@@ -88,7 +88,7 @@
         const initialFrame = frames[0];
 
         const layout = {
-            title: `${unitMapping[selectedUnit]} Sankey Diagram for ${rcpMapping[selectedRCP]} ${climateMapping[selectedClimate]} ${sspMapping[selectedSSP]} Scenario`,
+            title: `Integrated ${unitMapping[selectedUnit]} Sankey Diagram for ${rcpMapping[selectedRCP]} ${climateMapping[selectedClimate]} ${sspMapping[selectedSSP]} Scenario`,
             font: { size: 14 },
             sliders: [{
                 steps: frames.map(frame => ({
