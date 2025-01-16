@@ -7,15 +7,18 @@
 	import { base } from '$app/paths';
     import Icon from "@iconify/svelte";
 
+    const sspMapping = { 'ssp3': 'SSP3', 'ssp5': 'SSP5', };
+    const rcpMapping = { 'rcp45': 'RCP4.5', 'rcp85': 'RCP8.5',};
+    const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
 
-    const ssps = ['ssp3', 'ssp5'];
-    let selectedSSP = ssps[0];
+    const ssps = ['ssp3', 'ssp5']; // backend identifiers 
+    let selectedSSP = ssps[0]; // default to 'ssp3'
 
-    const rcps = ['rcp45', 'rcp85'];
-    let selectedRCP = rcps[0];
+    const rcps = ['rcp45', 'rcp85']; // backend identifiers 
+    let selectedRCP = rcps[0]; // default to 'rcp45'
 
-    const climates = ['cooler', 'hotter'];
-    let selectedClimate = climates[0];
+    const climates = ['cooler', 'hotter']; // backend identifiers 
+    let selectedClimate = climates[0]; // default to 'Cooler'
 
     // data is now fetched in a svelte-like way; see below
     let data;
@@ -252,10 +255,10 @@
         <div class="flex leading-normal pl-16 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
             <fieldset>
                 <div class="flex flex-row gap-5">
-                {#each rcps as s}
+                {#each rcps as r}
                 <div>
-                    <input type="radio" id={s} name="rcps" value={s} bind:group={selectedRCP}/>
-                    <label for={s}>{s}</label>
+                    <input type="radio" id={r} name="rcps" value={r} bind:group={selectedRCP}/>
+                    <label for={r}>{rcpMapping[r]}</label>
                 </div>
                 {/each}
             </div>
@@ -286,7 +289,7 @@
             {#each ssps as s}
             <div>
                 <input type="radio" id={s} name="ssps" value={s} bind:group={selectedSSP}/>
-                <label for={s}>{s}</label>
+                <label for={s}>{sspMapping[s]}</label>
             </div>
             {/each}
         </div>
@@ -308,10 +311,10 @@
     <div class="flex leading-normal pl-16 font-light h-1 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
         <fieldset>
             <div class="flex flex-row gap-5">
-            {#each climates as s}
+            {#each climates as c}
             <div>
-                <input type="radio" id={s} name="climates" value={s} bind:group={selectedClimate}/>
-                <label for={s}>{s}</label>
+                <input type="radio" id={c} name="climates" value={c} bind:group={selectedClimate}/>
+                <label for={c}>{climateMapping[c]}</label>
             </div>
             {/each}
         </div>
