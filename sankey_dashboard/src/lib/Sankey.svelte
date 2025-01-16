@@ -61,6 +61,7 @@
                 name: year,
                 data: [{
                     type: "sankey",
+                    valueformat:'.3r',
                     orientation: "h",
                     node: {
                         pad: 15,
