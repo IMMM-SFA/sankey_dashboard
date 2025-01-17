@@ -6,7 +6,7 @@
     import { onMount } from 'svelte';
 	import { base } from '$app/paths';
     import Icon from "@iconify/svelte";
-
+ 
     const sspMapping = { 'ssp3': 'SSP3', 'ssp5': 'SSP5', };
     const rcpMapping = { 'rcp45': 'RCP4.5', 'rcp85': 'RCP8.5',};
     const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
@@ -94,7 +94,7 @@
                 steps: frames.map(frame => ({
                     method: "animate",
                     label: frame.name,
-                    args: [[frame.name], { mode: "immediate", frame: { duration: 1000, redraw: true }, transition: { duration: 500 } }]
+                    args: [[frame.name], { mode: "next", frame: { duration: 2000, redraw: true }, transition: { duration: 2000 ,easing: "cubic-in-out"} }]
                 })),
                 active: 0,
                 currentvalue: {
@@ -110,7 +110,7 @@
                     {
                         label: "Play",
                         method: "animate",
-                        args: [null, { frame: { duration: 1000, redraw: true }, fromcurrent: true, mode: "immediate", transition: { duration: 500 } }]
+                        args: [null, { frame: { duration: 2000, redraw: true }, fromcurrent: true, mode: "next", transition: { duration: 1000 } }]
                     },
                     {
                         label: "Pause",
