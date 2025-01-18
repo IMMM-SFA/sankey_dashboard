@@ -10,7 +10,7 @@
     const sspMapping = { 'ssp3': 'SSP3', 'ssp5': 'SSP5', };
     const rcpMapping = { 'rcp45': 'RCP4.5', 'rcp85': 'RCP8.5',};
     const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
-    const unitMapping = {'Energy & Water': 'Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km3)'};
+    const unitMapping = {'Energy & Water': 'Integrated Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km3)'};
 
     const ssps = ['ssp3', 'ssp5']; // backend identifiers 
     let selectedSSP = ssps[0]; // default to 'ssp3'
@@ -21,7 +21,7 @@
     const climates = ['cooler', 'hotter']; // backend identifiers 
     let selectedClimate = climates[0]; // default to 'Cooler'
     
-    const units = ['Energy & Water','Energy', 'Water'];  // backend identifiers 
+    const units = ['Energy & Water', 'Energy', 'Water'];  // backend identifiers 
     let selectedUnit = units[0]; // default to 'Energy & Water'
 
     // data is now fetched in a svelte-like way; see below
@@ -30,15 +30,27 @@
     // Generate Sankey frames by year and scenario
     // this is the same as you had it
     function generateSankeyFrames(data, selectedSSP, selectedRCP, selectedClimate, selectedUnit) {
+
         const filteredData = data.filter(row => row.ssp === selectedSSP && row.rcp === selectedRCP && row.climate_sensitivity === selectedClimate && row.diagram === selectedUnit);
         const years = [...new Set(filteredData.map(row => row.year))];
         const labels = new Set();
+        const xCoords = [];
+        const yCoords = [];
         const frames = [];
 
+        // collect all unique labels
         filteredData.forEach(row => {
             labels.add(row.source);
             labels.add(row.target);
         });
+
+        const labelsArray = [...labels];
+
+        // apply custom coordinates to "Wind" only if the diagram is "Energy & Water"
+        if ('Energy & Water' === selectedUnit) {
+            const windIndex = labelsArray.indexOf("Wind");
+            if (windIndex !== -1) { xCoords[windIndex] = 0.335; yCoords[windIndex] = 0.05; }
+        }
 
         years.forEach(year => {
             const yearData = filteredData.filter(row => row.year === year);
@@ -46,29 +58,32 @@
             const targets = [];
             const values = [];
             const linkColors = [];
-            const nodeColors = Array.from({ length: labels.size });
-
+            const nodeColors = Array(labelsArray.length).fill(null);
+            
             yearData.forEach(row => {
-                sources.push([...labels].indexOf(row.source));
-                targets.push([...labels].indexOf(row.target));
+                sources.push(labelsArray.indexOf(row.source));
+                targets.push(labelsArray.indexOf(row.target));
                 values.push(parseFloat(row.value));
                 linkColors.push(row.link_color);
-                nodeColors[[...labels].indexOf(row.source)] = row.source_color;
-                nodeColors[[...labels].indexOf(row.target)] = row.target_color;
+
+                nodeColors[labelsArray.indexOf(row.source)] = row.source_color;
+                nodeColors[labelsArray.indexOf(row.target)] = row.target_color;
             });
 
             frames.push({
                 name: year,
                 data: [{
                     type: "sankey",
-                    valueformat:'.3r',
+                    valueformat: '.3r',
                     orientation: "h",
                     node: {
                         pad: 15,
                         thickness: 20,
                         line: { color: "black", width: 0.5 },
-                        label: [...labels],
-                        color: nodeColors
+                        label: labelsArray,
+                        color: nodeColors,
+                        x: xCoords,
+                        y: yCoords
                     },
                     link: {
                         source: sources,
@@ -80,28 +95,29 @@
             });
         });
 
-        return { frames, labels: [...labels] };
+        return { frames, labels: labelsArray };
     }
+
     // Energy-water Sankey
     function initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedUnit) {
         const { frames, labels } = generateSankeyFrames(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedUnit);
         const initialFrame = frames[0];
 
         const layout = {
-            title: `Integrated ${unitMapping[selectedUnit]} Sankey Diagram for ${rcpMapping[selectedRCP]} ${climateMapping[selectedClimate]} ${sspMapping[selectedSSP]} Scenario`,
+            title: `${unitMapping[selectedUnit]} Sankey Diagram for ${rcpMapping[selectedRCP]} ${climateMapping[selectedClimate]} ${sspMapping[selectedSSP]} Scenario`,
             font: { size: 14 },
             sliders: [{
                 steps: frames.map(frame => ({
                     method: "animate",
                     label: frame.name,
-                    args: [[frame.name], { mode: "next", frame: { duration: 2000, redraw: true }, transition: { duration: 2000 ,easing: "cubic-in-out"} }]
+                    args: [[frame.name], { mode: "next", frame: { duration: 2000, redraw: true }, transition: { duration: 2000 , easing: "cubic-in-out"} }]
                 })),
                 active: 0,
                 currentvalue: {
                     prefix: "Year: ",
                     font: { size: 16, color: "#666" }
                 },
-                pad: { t: 30 }
+                pad: { t: 10 }
             }],
             updatemenus: [{
                 type: "buttons",
@@ -172,6 +188,7 @@
         Scenario Selection
         </h5>
     </div>
+    
     <nav class="flex min-w-[240px] flex-col gap-3 mb-8 font-sans text-base font-normal text-blue-gray-700">
         <div role="contentinfo"
         class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
@@ -265,12 +282,11 @@
             <Icon icon="tabler:mist" style="font-size: 30px" />
             </div>
 
-
             <div class="group flex relative">
             <span>Show flows for:</span> 
             </div>
-            
         </div>
+
         <div class="flex leading-normal m-8 pl-7 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
             <fieldset>
                 <div class="flex flex-col  top-15 gap-5">
@@ -290,13 +306,10 @@
     </div>
 
 
-
-
-
     <!-- Sankey placement -->
 
-    <div id="sankeyWrapper" class="h-full w-full min-h-[800px] flex flex-col items-stretch flex-1">
-        <div id="hybridSankeyDiagram" class="w-full min-h-[800px]"></div> 
+    <div id="sankeyWrapper" class="h-full w-full min-h-[800px] flex flex-col items-stretch flex-1 m-0 p-0">
+        <div id="hybridSankeyDiagram" class="w-full min-h-[800px] m-0 p-0"></div> 
         
     </div>
 
