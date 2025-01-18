@@ -2,8 +2,8 @@
   import Papa from 'papaparse';
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
+  import { energywaterdata, isLoading, error, loadEnergyWaterData } from '../../stores/energywaterdata';
 
-  let energywaterdata = [];
   let filteredData = [];
   let currentPage = 1;
   let rowsPerPage = 10;
@@ -11,7 +11,6 @@
   let sortColumn = null;
   let sortDirection = "asc"; // or "desc"
 
-  const maxRowsPerPage = 100;
   const columnsToDisplay = ["scenario", "source", "target", "year", "value", "units", "diagram"];
 
   // capitalize column names for display
@@ -19,57 +18,49 @@
     (col) => col.charAt(0).toUpperCase() + col.slice(1)
   );
 
-  // repetitive code from Sankey.svelte
-  // TODO: create a shared utility function or a store 
+  // subscribe to the store aka load data once when the component mounts
   onMount(() => {
-    fetch(`${base}/energy_water_data.csv`)
-      .then((response) => (response.ok ? response.text() : Promise.reject("Error loading file")))
-      .then((d) => Papa.parse(d, { header: true }).data)
-      .then((d) => {
-        energywaterdata = d.map((row) =>
-          Object.fromEntries(Object.entries(row).filter(([key]) => columnsToDisplay.includes(key)))
-        );
-        filteredData = energywaterdata;
-      })
-      .catch((error) => console.error(error));
+    loadEnergyWaterData();
   });
 
-  $: filteredData = energywaterdata.filter((row) =>
+  // filter data based on search term
+  $: filteredData = $energywaterdata.filter((row) =>
     Object.values(row).some((value) =>
       value?.toString().toLowerCase().includes(search.toLowerCase())
     )
   );
 
-function sortByColumn(column) {
-  if (sortColumn === column) {
-    sortDirection = sortDirection === "asc" ? "desc" : "asc";
-  } else {
-    sortColumn = column;
-    sortDirection = "asc";
-  }
-
-  filteredData = [...filteredData].sort((a, b) => {
-    const valA = a[column]?.toString().toLowerCase();
-    const valB = b[column]?.toString().toLowerCase();
-
-    if (valA === undefined || valB === undefined) return 0;
-
-    if (!isNaN(valA) && !isNaN(valB)) {
-      return sortDirection === "asc"
-        ? parseFloat(valA) - parseFloat(valB)
-        : parseFloat(valB) - parseFloat(valA);
+  // sort data based on column and direction
+  function sortByColumn(column) {
+    if (sortColumn === column) {
+      sortDirection = sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      sortColumn = column;
+      sortDirection = "asc";
     }
 
-    return sortDirection === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
-  });
+    filteredData = [...filteredData].sort((a, b) => {
+      const valA = a[column]?.toString().toLowerCase();
+      const valB = b[column]?.toString().toLowerCase();
 
-  currentPage = 1; // reset to the first page after sorting
-}
+      if (valA === undefined || valB === undefined) return 0;
 
-$: paginatedData = [...filteredData].slice(
-  (currentPage - 1) * rowsPerPage,
-  currentPage * rowsPerPage
-);
+      if (!isNaN(valA) && !isNaN(valB)) {
+        return sortDirection === "asc"
+          ? parseFloat(valA) - parseFloat(valB)
+          : parseFloat(valB) - parseFloat(valA);
+      }
+
+      return sortDirection === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+
+    currentPage = 1; // reset to the first page after sorting
+  }
+
+  $: paginatedData = [...filteredData].slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
   
 
   function goToPage(page) {
@@ -84,6 +75,7 @@ $: paginatedData = [...filteredData].slice(
   function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+  
 </script>
 
 <style>
@@ -93,7 +85,7 @@ $: paginatedData = [...filteredData].slice(
     align-items: center;
     margin-bottom: 1rem;
   }
-.search-container {
+  .search-container {
     flex-grow: 1;
     margin-right: 1rem;
   }
@@ -125,7 +117,7 @@ $: paginatedData = [...filteredData].slice(
     cursor: pointer;
   }
   tr:hover {
-    background-color: #f1f1f1;
+    background-color: #f7f7f7;
   }
   .pagination {
     display: flex;
@@ -152,84 +144,91 @@ $: paginatedData = [...filteredData].slice(
 
 <div class="relative flex flex-col my-6 bg-white m-8">
   <div id='outline'
-  class="relative flex h-full w-full max-w-[100rem] p-8 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2">
+    class="relative flex h-full w-full max-w-[100rem] p-8 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2">
 
-  <div class="p-2 mb-2">
+    <div class="p-2 mb-2">
 
-    <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
-      Data Behind Visualizations
-    </h1>
+      <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
+        Data Behind Visualizations
+      </h1>
 
-    <div class="controls">
-      <div class="search-container">
-        <input
-          type="text"
-          placeholder="Search..."
-          bind:value={search}
-          class="p-2 border border-gray-300 rounded"
-        />
-      </div>
+      <div class="controls">
+        <div class="search-container">
+          <input
+            type="text"
+            placeholder="Search..."
+            bind:value={search}
+            class="p-2 border border-gray-300 rounded"
+          />
+        </div>
 
-      <div class="pagination-container">
-        <label>
-          Rows:
-          <select on:change={updateRowsPerPage} class="p-2 border border-gray-300 rounded">
-            <option value="10" selected>10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </label>
+        <div class="pagination-container">
+          <label>
+            Rows:
+            <select on:change={updateRowsPerPage} class="p-2 border border-gray-300 rounded">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
 
-        <div class="pagination">
-          <button on:click={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
-            <strong><span>←</span></strong> Previous
-          </button>
-          <span>
-            Page <strong>{currentPage}</strong> of {Math.ceil(filteredData.length / rowsPerPage)}
-          </span>
-          <button
-            on:click={() => goToPage(currentPage + 1)}
-            disabled={currentPage === Math.ceil(filteredData.length / rowsPerPage)}
-          >
-            Next <strong><span>→</span></strong>
-          </button>
+          <div class="pagination">
+            <button on:click={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
+              <strong><span>←</span></strong> Previous
+            </button>
+            <span>
+              Page <strong>{currentPage}</strong> of {Math.ceil(filteredData.length / rowsPerPage)}
+            </span>
+            <button
+              on:click={() => goToPage(currentPage + 1)}
+              disabled={currentPage === Math.ceil(filteredData.length / rowsPerPage)}
+            >
+              Next <strong><span>→</span></strong>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            {#each columnsToDisplay as column, index}
-              <th on:click={() => sortByColumn(column)}>
-                {displayColumns[index]} {sortColumn === column ? (sortDirection === "asc" ? "▲" : "▼") : ""}
-              </th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each paginatedData as row}
-            <tr>
-              {#each columnsToDisplay as column}
-                <td>{row[column]}</td>
+      <div class="table-container">
+        {#if $isLoading}
+        <p>Loading...</p>
+        {:else if $error}
+        <p>Error: {$error}</p>
+        {:else}  
+          <table>
+            <thead>
+              <tr>
+                {#each columnsToDisplay as column, index}
+                  <th on:click={() => sortByColumn(column)}>
+                    {displayColumns[index]} {sortColumn === column ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                  </th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              {#each paginatedData as row}
+                <tr>
+                  {#each columnsToDisplay as column}
+                    <td>{row[column]}</td>
+                  {/each}
+                </tr>
               {/each}
-            </tr>
-          {/each}
-          {#if paginatedData.length === 0}
-            <tr>
-              <td colspan={columnsToDisplay.length} style="text-align: center;">
-                No results found
-              </td>
-            </tr>
-          {/if}
-        </tbody>
-      </table>
-      
-      <button class="scroll-to-top" on:click={scrollToTop}>
-        Scroll to Top
-      </button>
+              {#if paginatedData.length === 0}
+                <tr>
+                  <td colspan={columnsToDisplay.length} style="text-align: center;">
+                    No results found
+                  </td>
+                </tr>
+              {/if}
+            </tbody>
+          </table>
+          
+          <button class="scroll-to-top" on:click={scrollToTop}>
+            Scroll to Top
+          </button>
+          
+        {/if}
 
       </div>
     </div>
