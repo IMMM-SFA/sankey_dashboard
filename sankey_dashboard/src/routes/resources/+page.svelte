@@ -8,7 +8,7 @@
     <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
       Related Resources
     </h1>
-
+      <!-- 
       <h2 class="mb-5 mt-5 text-slate-800 text-xl font-semibold"> Integrated Water Power Resilience Project Website</h2>
 
       <p class="mb-7 text-slate-800 text-l font-light"> The motivation of the <a class='text-[#2B7F9E]' href="https://www.pnnl.gov/projects/integrated-water-power-resilience-project" target="_blank"> Integrated Water Power Resilience Project</a> is to identify and develop opportunities to improve resilience in the water and power sectors through coordinated planning, investment, and operations and thereby provide benefits to power and water utilities, consumers, and the environment. The project website provides access to other water and energy research supported under this project as well as previously developed historic Sankey diagrams of water and energy sectors at the aggregate US level and for each major US electricity interconnection.</p>
@@ -18,12 +18,28 @@
       </a>
       
       <br>
+      <br> -->
+
+      <div class="flex flex-row items-start">
+        <div class="flex-1">
+          <h2 class="mb-5 mt-5 text-slate-800 text-xl font-semibold"> Integrated Water Power Resilience Project Website</h2>
+          <p class="mb-7 text-slate-800 text-l font-light"> The motivation of the <a class='text-[#2B7F9E]' href="https://www.pnnl.gov/projects/integrated-water-power-resilience-project" target="_blank"> Integrated Water Power Resilience Project</a> is to identify and develop opportunities to improve resilience in the water and power sectors through coordinated planning, investment, and operations and thereby provide benefits to power and water utilities, consumers, and the environment. The project website provides access to other water and energy research supported under this project as well as previously developed historic Sankey diagrams of water and energy sectors at the aggregate US level and for each major US electricity interconnection.</p>
+        </div>
+        <div class="ml-4">
+          <a href="https://www.pnnl.gov/projects/integrated-water-power-resilience-project" target="_blank">
+            <img src="EED_1253_BRAND_WaterPowerResLogo-HERO-03.jpg" alt="iwpr-project-logo" class='h-[190px]'/>
+          </a>
+        </div>
+      </div>
+      
+      <br>
       <br>
     
     <!-- PUBLICATIONS  -->
     <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
       Publications
     </h1>
+    <hr class="border-1 border-gray-300">
     
       <h2 class="mb-5 mt-5 text-slate-800 text-xl font-semibold"> Journal Articles</h2>
       
@@ -49,9 +65,11 @@
         <p class="mb-7 text-slate-800 text-l font-light">Mongird K., J.S. Homer, J.S. Rice, and K. Oikonomou. 11/09/2023. "Energy-water Interdependencies Across Sectors and Scales: Sankey Diagram Visualizations." Presented by K. Mongird, J.S. Homer at NEWS RD&D Interagency Meeting, Online, District Of Columbia. PNNL-SA-192272.</p>
       
     <!-- MODEL DOCUMENTATION -->
+    
     <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
       Modeling 
     </h1>
+    <hr class="border-1 border-gray-300">
     
       <h2 class="mb-5 mt-5 text-slate-800 text-xl font-semibold"> Global Change Analysis Model </h2>
 
