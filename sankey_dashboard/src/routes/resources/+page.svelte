@@ -7,14 +7,14 @@
   
   const diagramsResources = [
     {
-      src: '/gcam.svg',
+      src: 'gcam.svg',
       alt: 'Global Change Analysis Model (GCAM)',
       title: 'Global Change Analysis Model (GCAM)',
       // caption: 'GCAM market-based structure, sectors, interactions, and typical inputs and outputs',
       tooltip: 'Click to enlarge the GCAM diagram.'
     },
     {
-      src: '/experiment.svg',
+      src: 'experiment.svg',
       alt: 'GCAM-USA IM3 Experiment Diagram',
       title: 'GCAM-USA IM3 Experiment',
       // caption: 'GCAM-USA IM3 experimental design',
@@ -22,14 +22,14 @@
     },
 
     {
-      src: '/im3scenarios.svg', 
+      src: 'im3scenarios.svg', 
       alt: 'IM3 Scenarios Design',
       title: 'IM3 Scenarios Design',
       // caption: 'A Wide, Yet Plausible Range of 21st Century Futures',
       tooltip: 'Click to enlarge the IM3 scenarios design diagram'
     },
     {
-      src: '/resolutions.svg',
+      src: 'resolutions.svg',
       alt: 'GCAM-USA Spatial Resolutions',
       title: 'GCAM-USA Spatial Resolutions',
       // caption: 'Details of spatial and temporal resolutions.',
@@ -172,7 +172,7 @@
           <!-- add diagrams -->
           <div class="grid-container">
             {#each diagramsResources as diagram}
-              <div
+              <button
                 class="grid-item"
                 title={diagram.tooltip}
                 on:click={() => openFullScreen(diagram.src, diagram.caption)}
@@ -184,18 +184,19 @@
                 <div class="grid-item-caption">
                   {diagram.caption}
                 </div>
-              </div>
+              </button>
             {/each}
           </div>
 
           {#if fullScreenImage}
-            <div
+            <button
               class="modal backdrop"
               on:click={closeFullScreen}
+              aria-label="Full Screen Diagram"
             >
               <img src={fullScreenImage} alt="Full Screen Diagram" class="max-w-full max-h-3/4 shadow-lg rounded-md border border-gray-300" />
               <div class="text-center text-gray-500 text-sm mt-4">{fullScreenCaption}</div>
-            </div>
+            </button>
           {/if}
         
         <br>

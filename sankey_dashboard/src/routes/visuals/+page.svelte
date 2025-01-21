@@ -8,14 +8,14 @@
   
   const diagramsWater = [
     {
-      src: '/water_basins.svg',
+      src: 'water_basins.svg',
       alt: 'U.S. Water Withdrawals by Basin',
       title: 'U.S. Water Withdrawals by Basin',
       // caption: 'U.S. Water Withdrawals by Basin',
       tooltip: 'Click to enlarge the figure'
     },
     {
-      src: '/water_availability.svg',
+      src: 'water_availability.svg',
       alt: 'U.S. Water Availability by Water Source',
       title: 'U.S. Water Availability by Water Source',
       // caption: 'U.S. Water Availability by Water Source',
@@ -23,14 +23,14 @@
     },
 
     {
-      src: '/water_demands.svg', 
+      src: 'water_demands.svg', 
       alt: 'U.S. Water Demands by Sector',
       title: 'U.S. Water Demands by Sector',
       // caption: 'U.S. Water Demands by Sector',
       tooltip: 'Click to enlarge the figure'
     },
     {
-      src: '/water_use_sectors.svg',
+      src: 'water_use_sectors.svg',
       alt: 'U.S. Water Demands  by End-use Sector',
       title: 'U.S. Water Demands by End-use Sector',
       // caption: 'U.S. Water Demands by End-use Sector',
@@ -40,28 +40,28 @@
 
     const diagramsEnergy = [
       {
-      src: '/energy_supply.svg',
+      src: 'energy_supply.svg',
       alt: 'U.S. Primary Energy Supply',
       title: 'U.S. Primary Energy Supply',
       // caption: 'U.S. Primary Energy Supply',
       tooltip: 'Click to enlarge the figure'
     },
     {
-      src: '/energy_transformation.svg',
+      src: 'energy_transformation.svg',
       alt: 'U.S. Energy Transformation',
       title: 'U.S. Energy Transformation',
       // caption: 'U.S. Energy Transformation',
       tooltip: 'Click to enlarge the figure'
     },
     {
-      src: '/energy_enduse.svg', 
+      src: 'energy_enduse.svg', 
       alt: 'U.S. Energy End-use',
       title: 'U.S. Energy End-use',
       // caption: 'U.S. Energy End-use',
       tooltip: 'Click to enlarge the figure'
     },
     {
-      src: '/energy_losses.svg',
+      src: 'energy_losses.svg',
       alt: 'U.S. Energy Losses',
       title: 'U.S. Energy Losses',
       // caption: 'U.S. Energy Losses',
