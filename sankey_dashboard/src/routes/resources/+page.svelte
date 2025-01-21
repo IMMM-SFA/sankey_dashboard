@@ -1,4 +1,7 @@
 <script>
+  
+	import { base } from '$app/paths';
+  
   let fullScreenImage = null;
   let fullScreenCaption = '';
   
