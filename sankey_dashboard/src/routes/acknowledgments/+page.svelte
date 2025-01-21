@@ -24,7 +24,7 @@
     
     <div class="p-2 mb-2">
       <h1 class="mb-7 text-slate-800 text-3xl font-semibold text-center">
-        Acknowledgements
+        Acknowledgments
       </h1>
       
       <h2 class="mb-7 text-slate-800 text-l font-light text-center">

@@ -6,7 +6,7 @@
 	import { base } from '$app/paths';
 	import { Navbar, NavBrand, NavLi, NavUl, NavHamburger } from 'flowbite-svelte';
 	const nav_items = ['Energy-Water Flows for the United States over the 21st Century'];
-	const page_items = ['sankeys', 'other visuals', 'data', 'methodology', 'resources', 'acknowledgements'];
+	const page_items = ['sankeys', 'other visuals', 'data', 'methodology', 'resources', 'acknowledgments'];
 
 	import Icon from "@iconify/svelte";
 </script>
