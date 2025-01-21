@@ -200,7 +200,7 @@
             <div class="group flex relative">
             <span>Representative Concentration Pathway (RCP)</span> 
             <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
-                Projected greenhouse gas concentration in the atmosphere. 
+                The RCPs are scenarios of greenhouse gas concentrations and land use/land cover that lead to different levels of global warming by 2100. RCP4.5 is a mid-range scenario, with the average warming projected at 2.5 deg C, whereas RCP8.5 is a high growth scenario, with average warming projected at 4.3 deg C.
             </span>
             </div>
             
