@@ -10,7 +10,7 @@
     const sspMapping = { 'ssp3': 'SSP3', 'ssp5': 'SSP5', };
     const rcpMapping = { 'rcp45': 'RCP4.5', 'rcp85': 'RCP8.5',};
     const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
-    const unitMapping = {'Energy & Water': 'Integrated Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km3)'};
+    const unitMapping = {'Energy & Water': 'Integrated Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km<sup>3</sup>)'};
 
     const ssps = ['ssp3', 'ssp5']; // backend identifiers 
     let selectedSSP = ssps[0]; // default to 'ssp3'
