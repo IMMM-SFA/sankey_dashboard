@@ -146,13 +146,26 @@
               <img src="EED_1253_BRAND_WaterPowerResLogo-HERO-03.jpg" alt="iwpr-project-logo" class='h-[190px]'/>
             </a>
           </div>
+        
           <!-- <div class="ml-4 flex justify-center items-center">
             <a href="https://www.pnnl.gov/projects/integrated-water-power-resilience-project" target="_blank">
               <img src="EED_1253_BRAND_WaterPowerResLogo-HERO-03.jpg" alt="iwpr-project-logo" class='h-[190px] transition-transform duration-200 hover:scale-105'/>
             </a>
           </div> -->
-        </div>
         
+        </div>
+        <div class="flex flex-row items-start">
+        <div class="flex-1">
+          <h2 class="mb-5 mt-5 text-slate-800 text-xl font-semibold"> Integrated MultiSector MultiScale Modeling (IM3) Project Website</h2>
+          <p class="mb-7 text-slate-800 text-l font-light"> The <a class='text-[#2B7F9E]' href="https://im3.pnnl.gov/" target="_blank"> IM3 Project</a> couples open-source, process-based, human and natural system models to project vulnerability and resilience from local to continental scales in the United States to both short- and long-term influences.
+          </p>
+        </div>
+        <div class="ml-20 mt-10">
+          <a href="https://im3.pnnl.gov/" target="_blank">
+            <img src="IM3_logo.jpeg" alt="im3-project-logo" class='h-[140px] '/>
+          </a>
+        </div>
+        </div>
         <br>
         <br>
 
