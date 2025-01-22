@@ -10,7 +10,7 @@
     const sspMapping = { 'ssp3': 'SSP3', 'ssp5': 'SSP5', };
     const rcpMapping = { 'rcp45': 'RCP4.5', 'rcp85': 'RCP8.5',};
     const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
-    const unitMapping = {'Energy & Water': 'Integrated Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km3)'};
+    const unitMapping = {'Energy & Water': 'Integrated Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km<sup>3</sup>)'};
 
     const ssps = ['ssp3', 'ssp5']; // backend identifiers 
     let selectedSSP = ssps[0]; // default to 'ssp3'
@@ -200,7 +200,7 @@
             <div class="group flex relative">
             <span>Representative Concentration Pathway (RCP)</span> 
             <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
-                Projected greenhouse gas concentration in the atmosphere. 
+                Projected levels of global warming by 2100 due to changing greenhouse gas concentrations.
             </span>
             </div>
             
