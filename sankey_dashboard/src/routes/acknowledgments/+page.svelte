@@ -30,7 +30,7 @@
       <h2 class="mb-7 text-slate-800 text-l font-light text-center">
         This work was developed by Pacific Northwest National Laboratory as part of the <a href="https://www.pnnl.gov/projects/integrated-water-power-resilience-project" target="_blank" class='text-[#2B7F9E]'>Integrated Water Power Resilience Project </a> 
         with funding by the <a href="https://www.energy.gov/eere/water/water-power-technologies-office" target="_blank" class='text-[#2B7F9E]'> 
-          U.S. Department of Energy Water Power Technologies Office (WPTO) </a>  and the <a href="https://www.energy.gov/science/office-science" target="_blank" class='text-[#2B7F9E]'>U.S. Department of Energy Office of Science </a> as part of research in
+          U.S. Department of Energy Water Power Technologies Office (WPTO) </a> Energy-Water Resilience Program and the <a href="https://www.energy.gov/science/office-science" target="_blank" class='text-[#2B7F9E]'>U.S. Department of Energy Office of Science </a> as part of research in
         MultiSector Dynamics, Earth and Environmental Systems Modeling Program. 
       </h2>
     

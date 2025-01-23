@@ -7,8 +7,8 @@
 	import { base } from '$app/paths';
     import Icon from "@iconify/svelte";
  
-    const sspMapping = { 'ssp3': 'SSP3', 'ssp5': 'SSP5', };
-    const rcpMapping = { 'rcp45': 'RCP4.5', 'rcp85': 'RCP8.5',};
+    const sspMapping = { 'ssp3': 'Low', 'ssp5': 'High', };
+    const rcpMapping = { 'rcp45': 'Low', 'rcp85': 'High',};
     const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
     const unitMapping = {'Energy & Water': 'Integrated Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km<sup>3</sup>)'};
 
@@ -104,7 +104,7 @@
         const initialFrame = frames[0];
 
         const layout = {
-            title: `${unitMapping[selectedUnit]} Sankey Diagram for ${rcpMapping[selectedRCP]} ${climateMapping[selectedClimate]} ${sspMapping[selectedSSP]} Scenario`,
+            title: `${unitMapping[selectedUnit]} Sankey Diagram`,
             font: { size: 14 },
             sliders: [{
                 steps: frames.map(frame => ({
@@ -138,7 +138,22 @@
                     x: 0,
                     y: 0, 
                     pad: {t: 10, r: 10}
-            }]
+            }],
+            annotations: [
+            {
+                text: `${rcpMapping[selectedRCP]} Fossil-fuel Emphasis & ${sspMapping[selectedSSP]} Population and Economic Growth Scenario`,
+                x: 0.5,
+                y: 1.05,
+                xref: "paper",
+                yref: "paper",
+                showarrow: false,
+                font: {
+                    size: 16,
+                    color: "gray"
+                },
+                align: "center"
+            }
+        ],
         };
 
         Plotly.newPlot("hybridSankeyDiagram", initialFrame.data, layout)
@@ -194,14 +209,14 @@
         class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
         
         <div class="grid mr-4 place-items-center">
-            <Icon icon="ix:trend" style="font-size: 30px" />
+            <Icon icon="tabler:building-factory" style="font-size: 30px" />
             </div>
 
             <div class="group flex relative">
-            <span>Representative Concentration Pathway (RCP)</span> 
-            <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
+            <span>Fossil-fuel Emphasis</span> 
+            <!-- <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
                 Projected levels of global warming by 2100 due to changing greenhouse gas concentrations.
-            </span>
+            </span> -->
             </div>
             
         </div>
@@ -225,10 +240,10 @@
         <Icon icon="ix:user-management" style="font-size: 30px" />
         </div>
         <div class="group flex relative">
-            <span>Shared Socioeconomic Pathway (SSP)</span> 
-            <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
+            <span>Population & Economic Growth</span> 
+            <!-- <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
                 Projected global population and economy dynamics.
-            </span>
+            </span> -->
         </div>
     </div>
 
@@ -244,7 +259,7 @@
         </div>
         </fieldset>
     </div>
-    <div role="contentinfo"
+    <!-- <div role="contentinfo"
     class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
     <div class="grid mr-4 place-items-center">
         <Icon icon="ix:cloud" style="font-size: 30px" />
@@ -268,7 +283,7 @@
             {/each}
         </div>
         </fieldset>
-    </div>
+    </div> -->
     <div class="pt-9 ">
         <h5 class="block font-sans text-xl antialiased font-semibold tracking-normal text-blue-gray-900">
         Visualization Options
