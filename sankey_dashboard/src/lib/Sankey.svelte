@@ -31,7 +31,7 @@
     // this is the same as you had it
     function generateSankeyFrames(data, selectedSSP, selectedRCP, selectedClimate, selectedUnit) {
 
-        const filteredData = data.filter(row => row.ssp === selectedSSP && row.rcp === selectedRCP && row.climate_sensitivity === "cooler" && row.diagram === selectedUnit);
+        const filteredData = data.filter(row => row.ssp === selectedSSP && row.rcp === selectedRCP && row.climate_sensitivity === selectedClimate && row.diagram === selectedUnit);
         const years = [...new Set(filteredData.map(row => row.year))];
         const labels = new Set();
         const xCoords = [];
