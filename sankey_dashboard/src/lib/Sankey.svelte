@@ -58,6 +58,7 @@
             const targets = [];
             const values = [];
             const linkColors = [];
+            const flowHoverLabels = [];
             const nodeColors = Array(labelsArray.length).fill(null);
             
             yearData.forEach(row => {
@@ -68,6 +69,7 @@
 
                 nodeColors[labelsArray.indexOf(row.source)] = row.source_color;
                 nodeColors[labelsArray.indexOf(row.target)] = row.target_color;
+                flowHoverLabels.push(parseFloat(row.flow_value));
             });
 
             frames.push({
@@ -81,6 +83,7 @@
                         thickness: 20,
                         line: { color: "black", width: 0.5 },
                         label: labelsArray,
+                        hoverinfo: "none",
                         color: nodeColors,
                         x: xCoords,
                         y: yCoords
@@ -89,7 +92,10 @@
                         source: sources,
                         target: targets,
                         value: values,
-                        color: linkColors
+                        color: linkColors,
+                        customdata: flowHoverLabels,
+                        hovertemplate: "Source: %{source.label}<br>Target: %{target.label}<br>Value: %{customdata}<extra></extra>"
+
                     }
                 }]
             });
