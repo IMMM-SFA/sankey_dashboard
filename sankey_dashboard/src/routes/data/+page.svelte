@@ -11,7 +11,7 @@
   let sortColumn = null;
   let sortDirection = "asc"; // or "desc"
 
-  const columnsToDisplay = ["scenario", "source", "target", "year", "value", "units", "diagram"];
+  const columnsToDisplay = ["scenario", "source", "target", "year", "flow_value", "units", "diagram"];
 
   // capitalize column names for display
   const displayColumns = columnsToDisplay.map(
