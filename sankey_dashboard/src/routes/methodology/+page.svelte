@@ -142,12 +142,12 @@
     <hr class="border-1 border-gray-300">
     <br>
 
-    <p> The scenarios shown in the Sankey diagrams cover the responses of interacting energy, water, land, and urban systems to the compounding influences of climate, population change, energy futures, and technology change over the course of the 21st century.
+    <p> The eight scenarios defined below were developed for the Integrated Multisector, Multiscale Modeling (IM3) project (DOE SC).  The U.S.-scale Sankey diagrams shown in this dashboard show results from IM3 simulations for each of these scenarios using a customized version of the GCAM-USA model. GCAM-USA is an economic equilibrium model that simulates markets for energy, water, and land, as well as the interactions between those markets. In IM3, GCAM-USA incorporates climate impacts on energy demand, surface water supply, and agricultural yields, including greenhouse gas emissions trends consistent with each climate scenario, and socioeconomic impacts on population and economic growth. In summary, the IM3 scenarios define the inputs used by GCAM-USA to simulate a wide range of compounding influences on interacting energy, water, and land systems over the course of the 21st century.
     
     </p>
 
         <!-- add diagrams -->
-        <div class="grid-container">
+        <div class="grid-container w-screen">
           {#each scenarioResources as diagram}
             <button
               class="grid-item"
