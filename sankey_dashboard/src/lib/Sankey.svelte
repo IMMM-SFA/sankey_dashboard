@@ -1,6 +1,5 @@
 
 
-
 <script>
     import Papa from 'papaparse';
     import { onMount } from 'svelte';
@@ -10,7 +9,9 @@
     const sspMapping = { 'ssp3': 'Low', 'ssp5': 'High', };
     const rcpMapping = { 'rcp45': 'Low', 'rcp85': 'High',};
     const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
-    const unitMapping = {'Energy & Water': 'Integrated Energy (EJ) & Water (km<sup>3</sup>)', 'Energy': 'Energy (EJ)', 'Water': 'Water (km<sup>3</sup>)'};
+    const diagramMapping = {'Energy & Water': 'Integrated Energy & Water', 'Energy': 'Energy', 'Water': 'Water'};
+    const waterUnitMapping = {'km3': 'Cubic Kilometers', 'billion_gallons': 'Billion Gallons', 'million_acre_ft': 'Million Acre-Feet'};
+    const energyUnitMapping = {'EJ': 'Exajoules', 'quads': 'Quads', 'terawatt_hours': 'Terawatt-hours'};
 
     const ssps = ['ssp3', 'ssp5']; // backend identifiers 
     let selectedSSP = ssps[0]; // default to 'ssp3'
@@ -21,17 +22,24 @@
     const climates = ['cooler', 'hotter']; // backend identifiers 
     let selectedClimate = climates[0]; // default to 'Cooler'
     
-    const units = ['Energy & Water', 'Energy', 'Water'];  // backend identifiers 
-    let selectedUnit = units[0]; // default to 'Energy & Water'
+    const diagrams = ['Energy & Water', 'Energy', 'Water'];  // backend identifiers 
+    let selectedDiagram = diagrams[0]; // default to 'Energy & Water'
+
+    const water_units = ['km3', 'billion_gallons', 'million_acre_ft'];  // backend identifiers
+    let selectedWaterUnits = water_units[0]; // default to km3
+
+    const energy_units = ['EJ', 'quads', 'terawatt_hours'];  // backend identifiers
+    let selectedEnergyUnits = energy_units[0]; // default to EJ
 
     // data is now fetched in a svelte-like way; see below
     let energywaterdata;
 
     // Generate Sankey frames by year and scenario
     // this is the same as you had it
-    function generateSankeyFrames(data, selectedSSP, selectedRCP, selectedClimate, selectedUnit) {
-
-        const filteredData = data.filter(row => row.ssp === selectedSSP && row.rcp === selectedRCP && row.climate_sensitivity === selectedClimate && row.diagram === selectedUnit);
+    function generateSankeyFrames(data, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits) {
+        
+        const selectedUnitsList = [selectedEnergyUnits, selectedWaterUnits];
+        const filteredData = data.filter(row => (row.ssp === selectedSSP) && (row.rcp === selectedRCP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
         const years = [...new Set(filteredData.map(row => row.year))];
         const labels = new Set();
         const xCoords = [];
@@ -47,7 +55,7 @@
         const labelsArray = [...labels];
 
         // apply custom coordinates to "Wind" only if the diagram is "Energy & Water"
-        if ('Energy & Water' === selectedUnit) {
+        if ('Energy & Water' === selectedDiagram) {
             const windIndex = labelsArray.indexOf("Wind");
             if (windIndex !== -1) { xCoords[windIndex] = 0.335; yCoords[windIndex] = 0.05; }
         }
@@ -69,7 +77,7 @@
 
                 nodeColors[labelsArray.indexOf(row.source)] = row.source_color;
                 nodeColors[labelsArray.indexOf(row.target)] = row.target_color;
-                flowHoverLabels.push(parseFloat(row.flow_value));
+                flowHoverLabels.push(parseFloat(row.unit_value));
             });
 
             frames.push({
@@ -105,12 +113,12 @@
     }
 
     // Energy-water Sankey
-    function initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedUnit) {
-        const { frames, labels } = generateSankeyFrames(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedUnit);
+    function initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits) {
+        const { frames, labels } = generateSankeyFrames(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits);
         const initialFrame = frames[0];
 
         const layout = {
-            title: `${unitMapping[selectedUnit]} Sankey Diagram`,
+            title: `${diagramMapping[selectedDiagram]} Sankey Diagram for the United States`,
             font: { size: 14 },
             sliders: [{
                 steps: frames.map(frame => ({
@@ -190,10 +198,55 @@
     // we only run initializeSankey if both `data` and `selectedScenario` are "truthy",
     // meaning they have any non-false, non-zero, non-empty string value;
     // there are many other ways to use "$:" too
-    $: if (energywaterdata && selectedSSP && selectedRCP && selectedClimate && selectedUnit) {
-        initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedUnit);
+    $: if (energywaterdata && selectedSSP && selectedRCP && selectedClimate && selectedDiagram && selectedEnergyUnits && selectedWaterUnits) {
+        initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits);
     }
 
+    // var csv = Papa.unparse(filteredData);
+
+    // var csvData = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+
+    // var csvURL = window.URL.createObjectURL(csvData);
+
+    // var testLink = document.createElement('a');
+
+    // testLink.href = csvURL;
+    // testLink.setAttribute('download', 'test.csv');
+    // testLink.click();
+
+
+    function downloadCSV(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits) {
+        if (!energywaterdata.length) return;
+        
+        const selectedUnitsList = [selectedEnergyUnits, selectedWaterUnits];
+        const filteredData = energywaterdata.filter(row => (row.ssp === selectedSSP) && (row.rcp === selectedRCP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
+        
+        const columnsToDownload = ["rcp", 'ssp', "source", "target", "year", "unit_value", "units", "diagram"];
+
+        const selectedData = filteredData.map(item => {
+            let filteredItem = {};
+            columnsToDownload.forEach(key => {
+                filteredItem[key] = item[key];
+            });
+            return filteredItem;
+            });
+
+        // Convert data to CSV format
+
+
+        const csv = Papa.unparse(selectedData);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", "sankey_data_download.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 </script>
 
 <!-- Svelte will always rerender the html when variables change reactively -->
@@ -205,9 +258,15 @@
     <div id='scenarioSelectionBar'
     class="sticky top-0 flex h-full w-full max-w-[21rem] p-7 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2 drop-shadow-xl">
     <div class="p-2 mb-2">
+        <div class="flex items-center">
         <h5 class="block font-sans text-xl antialiased font-semibold leading-snug tracking-normal text-blue-gray-900">
-        Scenario Selection
+        Scenario Selection 
         </h5>
+        <!-- <span>
+        <Icon icon="lucide:info" style="font-size: 15px" />
+        </span>  -->
+
+        </div>
     </div>
     
     <nav class="flex min-w-[240px] flex-col gap-3 mb-8 font-sans text-base font-normal text-blue-gray-700">
@@ -295,12 +354,12 @@
         Visualization Options
         </h5>
     </div>
-    <nav class="flex min-w-[240px] flex-col gap-3 font-sans text-base font-normal text-blue-gray-700">
+    <nav class="flex min-w-[240px] flex-col font-sans text-base font-normal text-blue-gray-700">
         <div role="contentinfo"
         class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
         
         <div class="grid mr-4 place-items-center">
-            <Icon icon="tabler:mist" style="font-size: 30px" />
+            <Icon icon="tabler:mist" style="font-size: 25px" />
             </div>
 
             <div class="group flex relative">
@@ -310,28 +369,93 @@
 
         <div class="flex leading-normal m-8 pl-7 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
             <fieldset>
-                <div class="flex flex-col  top-15 gap-5">
-                {#each units as s}
+                <div class="flex flex-col  top-15 gap-2">
+                {#each diagrams as s}
                 <div>
-                    <input type="radio" id={s} name="units" value={s} bind:group={selectedUnit}/>
+                    <input type="radio" id={s} name="diagram" value={s} bind:group={selectedDiagram}/>
                     <label for={s}>{s}</label>
                 </div>
                 {/each}
             </div>
             </fieldset>
         </div>
+    </nav>
 
+    <nav class="flex min-w-[240px] flex-col font-sans text-base font-normal text-blue-gray-700">
+        <div role="contentinfo"
+        class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+        
+        <div class="grid mr-4 place-items-center">
+            <Icon icon="lets-icons:water" style="font-size: 25px" />
+            </div>
 
+            <div class="group flex relative">
+            <span>Select Water Units:</span> 
+            </div>
+        </div>
+
+        <div class="flex leading-normal m-8 pl-7 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+            <fieldset>
+                <div class="flex flex-col top-15 gap-2">
+                {#each water_units as s}
+                <div>
+                    <input type="radio" id={s} name="waterUnits" value={s} bind:group={selectedWaterUnits}/>
+                    <label for={s}>{waterUnitMapping[s]}</label>
+                </div>
+                {/each}
+            </div>
+            </fieldset>
+        </div>
     </nav>
     
+    <nav class="flex min-w-[240px] flex-col font-sans text-base font-normal text-blue-gray-700">
+        <div role="contentinfo"
+        class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+        
+        <div class="grid mr-4 place-items-center">
+            <Icon icon="nimbus:fire" style="font-size: 25px" />
+            </div>
+
+            <div class="group flex relative">
+            <span>Select Energy Units:</span> 
+            </div>
+        </div>
+
+        <div class="flex leading-normal m-8 pl-7 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+            <fieldset>
+                <div class="flex flex-col  top-15 gap-2">
+                {#each energy_units as s}
+                <div>
+                    <input type="radio" id={s} name="energyUnits" value={s} bind:group={selectedEnergyUnits}/>
+                    <label for={s}>{energyUnitMapping[s]}</label>
+                </div>
+                {/each}
+            </div>
+            </fieldset>
+        </div>
+
+    <div class="pt-8">
+    <button on:click={() => downloadCSV(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits)} class="bg-gray-200 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center">
+            <svg class="fill-current w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/></svg>
+            <span>Download Selected Data</span>
+    </button>
     </div>
+    </nav>
 
 
+
+</div>
+
+    
+    
     <!-- Sankey placement -->
+
 
     <div id="sankeyWrapper" class="h-full w-full min-h-[800px] flex flex-col items-stretch flex-1 m-0 p-0">
         <div id="hybridSankeyDiagram" class="w-full min-h-[800px] m-0 p-0"></div> 
-        
     </div>
 
+
+
 </div>
+
