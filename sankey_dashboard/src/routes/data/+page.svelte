@@ -1,4 +1,257 @@
+
+
 <script>
+  import Papa from 'papaparse';
+  import { onMount } from 'svelte';
+  import { base } from '$app/paths';
+  import Icon from "@iconify/svelte";
+
+  const sspMapping = {'all': 'All', 'ssp3': 'Low', 'ssp5': 'High', };
+  const rcpMapping = { 'all': 'All', 'rcp45': 'Low', 'rcp85': 'High',};
+  const climateMapping = { 'cooler': 'Cooler', 'hotter': 'Hotter', };
+  const diagramMapping = {'Energy & Water': 'Integrated Energy & Water', 'Energy': 'Energy', 'Water': 'Water'};
+  const waterUnitMapping = {'km3': 'Cubic Kilometers', 'billion_gallons': 'Billion Gallons', 'million_acre_ft': 'Million Acre-Feet'};
+  const energyUnitMapping = {'EJ': 'Exajoules', 'quads': 'Quads', 'terawatt_hours': 'Terawatt-hours'};
+
+  const ssps = ['all', 'ssp3', 'ssp5']; // backend identifiers 
+  let selectedSSP = ssps[0]; // default to 'ssp3'
+
+  const rcps = ['all', 'rcp45', 'rcp85']; // backend identifiers 
+  let selectedRCP = rcps[0]; // default to 'rcp45'
+
+  const climates = ['cooler', 'hotter']; // backend identifiers 
+  let selectedClimate = climates[0]; // default to 'Cooler'
+  
+  const diagrams = ['Energy & Water', 'Energy', 'Water'];  // backend identifiers 
+  let selectedDiagram = diagrams[0]; // default to 'Energy & Water'
+
+  const water_units = ['km3', 'billion_gallons', 'million_acre_ft'];  // backend identifiers
+  let selectedWaterUnits = water_units[0]; // default to km3
+
+  const energy_units = ['EJ', 'quads', 'terawatt_hours'];  // backend identifiers
+  let selectedEnergyUnits = energy_units[0]; // default to EJ
+
+  // data is now fetched in a svelte-like way; see below
+  let energywaterdata;
+
+  // when the page loads into a user's browser (onMount),
+  // fetch the data and store in the the `data` variable defined above
+  onMount(() => {
+      fetch(`${base}/energy_water_data.csv`).then(response => {
+          if (!response.ok) throw new Error("Network response was not ok");
+          return response.text();
+      }).then(
+          d => Papa.parse(d, { header: true }).data
+      ).then(d => {
+          // this is the modele scoped `data` variable defined above
+          energywaterdata = d;
+      }).catch(
+          error => console.error("Error loading CSV file:", error)
+      );
+  });
+
+  // this is how to make a "reactive" construct in svelte, using the $: syntax
+  $: if (energywaterdata && selectedSSP && selectedRCP && selectedClimate && selectedDiagram && selectedEnergyUnits && selectedWaterUnits) {
+      initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits);
+  }
+
+
+  function downloadCSV(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits) {
+      if (!energywaterdata.length) return;
+      
+      const selectedUnitsList = [selectedEnergyUnits, selectedWaterUnits];
+      
+      // const filteredData = energywaterdata.filter(row => (row.ssp === selectedSSP) && (row.rcp === selectedRCP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
+      
+      let sspFilteredSubset;
+      if (selectedSSP === "all") {
+        // If "all" is selected, include all data
+        sspFilteredSubset = energywaterdata.filter(row => (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
+      } else {
+        sspFilteredSubset = energywaterdata.filter(row => (row.ssp === selectedSSP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
+      }
+
+      let rcpFilteredSubset;
+      if (selectedRCP === "all") {
+        // If "all" is selected, include all data
+        rcpFilteredSubset = sspFilteredSubset;
+      } else {
+        rcpFilteredSubset = sspFilteredSubset.filter(row => (row.rcp === selectedRCP));
+      }    
+
+
+      const columnsToDownload = ["rcp", 'ssp', "source", "target", "year", "unit_value", "units", "diagram"];
+
+      const selectedData = rcpFilteredSubset.map(item => {
+          let filteredItem = {};
+          columnsToDownload.forEach(key => {
+              filteredItem[key] = item[key];
+          });
+          return filteredItem;
+          });
+
+      // Convert data to CSV format
+
+
+      const csv = Papa.unparse(selectedData);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      
+      link.setAttribute("href", url);
+      link.setAttribute("download", "sankey_data_download.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+  }
+</script>
+
+<!-- Svelte will always rerender the html when variables change reactively -->
+<div class="relative flex flex-col my-6 bg-white m-8">
+  <div id='data' class="relative flex h-full w-full max-w-[90rem] p-8 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2">
+  
+    <div class="p-2 mb-2">
+  <h1 class="mb-0 text-slate-800 text-3xl font-semibold">
+    Download Data
+  </h1>
+    </div>  
+
+  
+  <nav class="flex min-w-[240px] flex-col gap-3 mb-8 font-sans text-base font-normal text-blue-gray-700">
+    <div role="contentinfo" class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+        <div class="grid mr-0 place-items-center">
+        </div>
+
+        <div class="group flex relative">
+        <span>Fossil-fuel Emphasis Scenario</span> 
+        </div>
+          
+    </div>
+
+    <div class="flex-row leading-normal pl-10 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+      <fieldset>
+        <div class="flex flex-row gap-5">
+          {#each rcps as r}
+          <div>
+            <input type="radio" id={r} name="rcps" value={r} bind:group={selectedRCP}/>
+            <label for={r}>{rcpMapping[r]}</label>
+          </div>
+          {/each}
+        </div>
+      </fieldset>
+    </div>
+      
+
+      <div role="contentinfo" class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+          <div class="grid mr-0 place-items-center">
+          </div>
+          <div class="group flex relative">
+          <span>Population & Economic Growth Scenario:</span> 
+      </div>
+  </div>
+  <div class="flex leading-normal pl-10 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+      <fieldset>
+          <div class="flex flex-row gap-5">
+          {#each ssps as s}
+          <div>
+              <input type="radio" id={s} name="ssps" value={s} bind:group={selectedSSP}/>
+              <label for={s}>{sspMapping[s]}</label>
+          </div>
+          {/each}
+      </div>
+      </fieldset>
+  </div>
+
+
+    <div role="contentinfo" class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+        <div class="grid mr-0 place-items-center">
+        </div>
+
+        <div class="group flex relative">
+          <span>Select Flow Data:</span> 
+          </div>
+      </div>
+
+      <div class="flex leading-normal pl-10 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+          <fieldset>
+              <div class="flex flex-row  top-15 gap-2">
+              {#each diagrams as s}
+              <div>
+                  <input type="radio" id={s} name="diagram" value={s} bind:group={selectedDiagram}/>
+                  <label for={s}>{s}</label>
+              </div>
+              {/each}
+          </div>
+          </fieldset>
+      </div>
+
+    <div role="contentinfo" class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+        <div class="grid mr-0 place-items-center">
+        </div>
+
+        <div class="group flex relative">
+          <span>Select Water Units:</span> 
+          </div>
+      </div>
+
+      <div class="flex leading-normal pl-10 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+        <fieldset>
+            <div class="flex flex-row  top-15 gap-2">
+              {#each water_units as s}
+              <div>
+                  <input type="radio" id={s} name="waterUnits" value={s} bind:group={selectedWaterUnits}/>
+                  <label for={s}>{waterUnitMapping[s]}</label>
+              </div>
+              {/each}
+          </div>
+          </fieldset>
+      </div>
+  
+    <div role="contentinfo" class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+        <div class="grid mr-0 place-items-center">
+        </div>
+
+        <div class="group flex relative">
+          <span>Select Energy Units:</span> 
+          </div>
+      </div>
+
+      <div class="flex leading-normal pl-10 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+        <fieldset>
+            <div class="flex flex-row  top-15 gap-2">
+              {#each energy_units as s}
+              <div>
+                  <input type="radio" id={s} name="energyUnits" value={s} bind:group={selectedEnergyUnits}/>
+                  <label for={s}>{energyUnitMapping[s]}</label>
+              </div>
+              {/each}
+          </div>
+          </fieldset>
+      </div>
+
+
+
+  <div class="pt-8">
+  <button on:click={() => downloadCSV(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits)} class="bg-gray-200 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center">
+          <svg class="fill-current w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/></svg>
+          <span>Download Selected Data</span>
+  </button>
+  </div>
+  </nav>
+
+
+
+</div>
+
+</div>
+
+
+
+
+
+<!-- <script>
   import Papa from 'papaparse';
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
@@ -11,7 +264,7 @@
   let sortColumn = null;
   let sortDirection = "asc"; // or "desc"
 
-  const columnsToDisplay = ["scenario", "source", "target", "year", "flow_value", "units", "diagram"];
+  const columnsToDisplay = ["rcp", 'ssp', 'climate_sensitivity', "source", "target", "year", "flow_value", "units", "diagram"];
 
   // capitalize column names for display
   const displayColumns = columnsToDisplay.map(
@@ -75,6 +328,29 @@
   function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  function downloadCSV(data, filename) {
+      // Convert data to CSV format
+      const csv = data.map(row => row.join(",")).join("\n");
+
+      // Create a Blob (binary large object)
+      const blob = new Blob([csv], { type: "text/csv" });
+
+      // Create a URL for the Blob
+      const url = URL.createObjectURL(blob);
+
+      // Create a link element and trigger a click event to download
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+}
+
   
 </script>
 
@@ -149,8 +425,15 @@
     <div class="p-2 mb-2">
 
       <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
-        Data Behind Visualizations
+        Sankey Data
       </h1>
+      <div>
+
+            <button on:click={() => downloadCSV(energywaterdata, "data.csv")} >
+              <strong><span> Download Data </span></strong>
+            </button>
+      
+      </div>
 
       <div class="controls">
         <div class="search-container">
@@ -233,4 +516,4 @@
       </div>
     </div>
   </div>
-</div>
+</div> -->
