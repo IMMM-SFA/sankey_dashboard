@@ -83,17 +83,9 @@
   <div id='resources'
   class="relative flex h-full w-full max-w-[90rem] p-8 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2">
     <div class="p-2 mb-2">
-      <!-- RESOURCES  -->
-      <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
-        Download Data
-      </h1>
-      <hr class="border-1 border-gray-300">
-      <br>
-      This component is under construction. Please check back later.
-      <br>
-      <br>
-      <br>
-      <br>      
+
+
+  
 
       
       <!-- RESOURCES  -->
@@ -147,7 +139,24 @@
         <br>
         <br>
         
-  
+        <!-- RESOURCES  -->
+        <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
+          FAQ
+        </h1>
+        <hr class="border-1 border-gray-300">
+        <h2 class="mb-5 mt-5 text-slate-800 text-xl font-semibold"> What is a Sankey Diagram?</h2>
+        <p>
+          Sankey diagrams provide a visual representation of processes and transfers within a given system, shown as proportional flows. The width of given flows in the same units are proportional to the amount of the given unit being transferred. 
+        </p>
+        <br>
+        <h2 class="mb-5 mt-5 text-slate-800 text-xl font-semibold"> How do I download the data in the Sankey diagrams?</h2>
+        <p>
+          Data in the Sankey diagrams can be directly downloaded as a csv from the <a href="{base}/data" class="text-[#2B7F9E] hover:text-[#9e422b] hover:scale-105">Data</a> page.
+        </p>
+        <br>
+        <br>
+        <br>
+        <br>      
       
       <!-- PUBLICATIONS  -->
       <h1 class="mb-7 text-slate-800 text-3xl font-semibold">
