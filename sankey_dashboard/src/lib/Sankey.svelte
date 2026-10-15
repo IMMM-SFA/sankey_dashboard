@@ -1,9 +1,8 @@
-
-
 <script>
     import Papa from 'papaparse';
+    import { parquetRead } from 'hyparquet';
     import { onMount } from 'svelte';
-	import { base } from '$app/paths';
+    import { base } from '$app/paths';
     import Icon from "@iconify/svelte";
  
     const sspMapping = { 'ssp3': 'Low', 'ssp5': 'High', };
@@ -12,6 +11,24 @@
     const diagramMapping = {'Energy & Water': 'Integrated Energy & Water', 'Energy': 'Energy', 'Water': 'Water'};
     const waterUnitMapping = {'km3': 'Cubic Kilometers', 'billion_gallons': 'Billion Gallons', 'million_acre_ft': 'Million Acre-Feet'};
     const energyUnitMapping = {'EJ': 'Exajoules', 'quads': 'Quads', 'terawatt_hours': 'Terawatt-hours'};
+
+    const detailLevels = [
+        { label: 'Low', value: '1' },
+        { label: 'Medium', value: '2' },
+        { label: 'High', value: '3' }
+    ];
+
+    // 8 rows x 12 columns US cartogram layout
+    const stateGrid = [
+        ['AK', null, null, null, null, null, null, null, null, null, null, 'ME'],
+        [null, null, null, null, null, null, 'WI', null, null, null, 'VT', 'NH'],
+        ['WA', 'ID', 'MT', 'ND', 'MN', 'IL', 'MI', null, 'NY', 'MA', null, null],
+        ['OR', 'NV', 'WY', 'SD', 'IA', 'IN', 'OH', 'PA', 'NJ', 'CT', 'RI', null],
+        ['CA', 'UT', 'CO', 'NE', 'MO', 'KY', 'WV', 'VA', 'MD', 'DE', null, null],
+        [null, 'AZ', 'NM', 'KS', 'AR', 'TN', 'NC', 'SC', 'DC', null, null, null],
+        [null, null, null, 'OK', 'LA', 'MS', 'AL', 'GA', null, null, null, null],
+        ['HI', null, null, 'TX', null, null, null, 'FL', null, null, null, null]
+    ];
 
     const ssps = ['ssp3', 'ssp5']; // backend identifiers 
     let selectedSSP = ssps[0]; // default to 'ssp3'
@@ -31,16 +48,273 @@
     const energy_units = ['EJ', 'quads', 'terawatt_hours'];  // backend identifiers
     let selectedEnergyUnits = energy_units[0]; // default to EJ
 
-    // data is now fetched in a svelte-like way; see below
     let energywaterdata;
+    let gcamEnergyData = null;
+    let isLoadingEnergyData = false;
+    let scenarios = [];
+    let selectedStates = ['WA'];
+    let selectedScenario = '';
+    let selectedDetailLevel = '1'; // maps to 1, 2, 3 (always includes level 0)
+    let renderCounter = 0;
+
+    const colorPalettes = [
+        {
+            value: 'energy-water',
+            label: 'Energy & Water color scheme'
+        },
+        {
+            value: 'interpolated',
+            label: 'Interpolate source and target colors'
+        },
+        {
+            value: 'source',
+            label: 'Source node color'
+        }
+    ];
+    const energyWaterPalette = {
+        energy: 'rgba(238, 118, 24, 0.6)',
+        water: 'rgba(0, 177, 209, 0.6)',
+        electricity: 'rgba(252, 207, 18, 0.6)',
+        losses: 'rgba(105, 105, 105, 0.6)'
+    };
+
+    let selectedColorPalette = 'energy-water';
+
+    function normalizeLabel(value) {
+        return String(value ?? '').trim().toLowerCase();
+    }
+
+    function isElectricityNode(label) {
+        const name = normalizeLabel(label);
+
+        return (
+            name === 'electricity' ||
+            name.includes('electricity') ||
+            name.includes('electric power') ||
+            name.includes('power grid')
+        );
+    }
+
+    function isLossNode(label) {
+        const name = normalizeLabel(label);
+
+        return (
+            name.includes('loss') ||
+            name.includes('waste') ||
+            name.includes('reject')
+        );
+    }
+
+    function isWaterUnit(units) {
+        const unit = String(units ?? '').trim().toLowerCase();
+
+        return (
+            unit === 'km3' ||
+            unit.includes('gallon') ||
+            unit.includes('acre') ||
+            unit.includes('water')
+        );
+    }
+
+    function parseColor(color) {
+        if (!color) return [128, 128, 128];
+        const hex = color.trim().replace(/^#/, '');
+        if (hex.length === 6) {
+            return [
+                parseInt(hex.slice(0, 2), 16),
+                parseInt(hex.slice(2, 4), 16),
+                parseInt(hex.slice(4, 6), 16)
+            ];
+        }
+        if (hex.length === 3) {
+            return [
+                parseInt(hex[0] + hex[0], 16),
+                parseInt(hex[1] + hex[1], 16),
+                parseInt(hex[2] + hex[2], 16)
+            ];
+        }
+        const rgbMatch = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+        if (rgbMatch) {
+            return [parseFloat(rgbMatch[1]), parseFloat(rgbMatch[2]), parseFloat(rgbMatch[3])];
+        }
+        return [128, 128, 128];
+    }
+
+    function colorWithAlpha(color, alpha = 0.35) {
+        if (!color) return `rgba(0, 0, 0, ${alpha})`;
+
+        const [r, g, b] = parseColor(color);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function getEnergyWaterFlowType(row) {
+        // A flow ending in losses is always gray.
+        if (isLossNode(row.target)) {
+            return 'losses';
+        }
+
+        // A flow originating from Electricity is yellow.
+        if (isElectricityNode(row.source)) {
+            return 'electricity';
+        }
+
+        // Any other EJ flow is orange Energy.
+        if (String(row.units ?? '').trim() === 'EJ') {
+            return 'energy';
+        }
+
+        // Water-unit flows are blue.
+        if (isWaterUnit(row.units)) {
+            return 'water';
+        }
+
+        return 'energy';
+    }
+
+    function getEnergyWaterNodeType(nodeLabel, data) {
+        // Named categories always take precedence.
+        if (isLossNode(nodeLabel)) {
+            return 'losses';
+        }
+
+        if (isElectricityNode(nodeLabel)) {
+            return 'electricity';
+        }
+
+        // Find all flows connected to this node.
+        const connectedRows = data.filter(
+            (row) => row.source === nodeLabel || row.target === nodeLabel
+        );
+
+        // Any non-electricity node associated with an EJ flow is Energy.
+        if (connectedRows.some((row) => String(row.units ?? '').trim() === 'EJ')) {
+            return 'energy';
+        }
+
+        // Nodes associated with water-unit flows are Water.
+        if (connectedRows.some((row) => isWaterUnit(row.units))) {
+            return 'water';
+        }
+
+        // Optional fallback if some water flows have unexpected/missing units.
+        const nodeName = normalizeLabel(nodeLabel);
+
+        if (
+            nodeName.includes('water') ||
+            nodeName.includes('withdraw') ||
+            nodeName.includes('irrigation') 
+        ) {
+            return 'water';
+        }
+
+        // Default all otherwise unknown non-electricity nodes to energy.
+        return 'energy';
+    }
+
+    function getLinkColor(row, palette) {
+        switch (palette) {
+            case 'energy-water':
+                return energyWaterPalette[getEnergyWaterFlowType(row)];
+
+            case 'source':
+                return colorWithAlpha(row.source_color, 0.35);
+
+            case 'interpolated':
+            default:
+                if (row.source_color && row.target_color) {
+                    return interpolateRgba(
+                        row.source_color,
+                        row.target_color,
+                        0.35
+                    );
+                }
+
+                return row.link_color || 'rgba(0,0,0,0.2)';
+        }
+    }
+
+    function interpolateRgba(sourceColor, targetColor, alpha = 0.35) {
+        const s = parseColor(sourceColor);
+        const t = parseColor(targetColor);
+        const r = Math.round((s[0] + t[0]) / 2);
+        const g = Math.round((s[1] + t[1]) / 2);
+        const b = Math.round((s[2] + t[2]) / 2);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function handleStateClick(event, code) {
+        const isMulti = event.shiftKey || event.ctrlKey || event.metaKey;
+
+        if (isMulti) {
+            if (selectedStates.includes(code)) {
+                selectedStates = selectedStates.filter(s => s !== code);
+            } else {
+                selectedStates = [...selectedStates, code];
+            }
+        } else {
+            // Normal click: clicking already selected only state deselects it; otherwise select only this state
+            if (selectedStates.length === 1 && selectedStates[0] === code) {
+                selectedStates = [];
+            } else {
+                selectedStates = [code];
+            }
+        }
+    }
+
+    function selectAllStates() {
+        const all = [];
+        stateGrid.forEach(row => {
+            row.forEach(cell => {
+                if (cell) all.push(cell);
+            });
+        });
+        selectedStates = all;
+    }
+
+    function clearStates() {
+        // Keep at least one default selected
+        selectedStates = ['WA'];
+    }
 
     // Generate Sankey frames by year and scenario
-    // this is the same as you had it
-    function generateSankeyFrames(data, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits) {
-        
-        const selectedUnitsList = [selectedEnergyUnits, selectedWaterUnits];
-        const filteredData = data.filter(row => (row.ssp === selectedSSP) && (row.rcp === selectedRCP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
-        const years = [...new Set(filteredData.map(row => row.year))];
+    function generateSankeyFrames(data, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits, currentSelectedStates, selectedScenario, currentDetailLevel, selectedColorPalette) {
+        let filteredData;
+        if (selectedDiagram === 'Energy') {
+            const stateSet = new Set(currentSelectedStates);
+            // Levels 1-3 always include level 0, and level 0 is not a standalone option
+            const matchingRows = data.filter(row => 
+                stateSet.has(row.region) && 
+                row.scenario === selectedScenario && 
+                (String(row.level) === '0' || String(row.level) === '0.0' || String(row.level) === String(currentDetailLevel))
+            );
+
+            // Sum flows across multiple selected states
+            const aggregatedMap = new Map();
+            matchingRows.forEach(row => {
+                const key = `${row.year}|||${row.source}|||${row.target}`;
+                const val = parseFloat(row.value) || 0;
+                if (!aggregatedMap.has(key)) {
+                    aggregatedMap.set(key, {
+                        year: row.year,
+                        source: row.source,
+                        target: row.target,
+                        source_color: row.source_color,
+                        target_color: row.target_color,
+                        value: val,
+                        units: row.units
+                    });
+                } else {
+                    const existing = aggregatedMap.get(key);
+                    existing.value += val;
+                }
+            });
+            filteredData = Array.from(aggregatedMap.values());
+        } else {
+            const selectedUnitsList = [selectedEnergyUnits, selectedWaterUnits];
+            filteredData = data.filter(row => (row.ssp === selectedSSP) && (row.rcp === selectedRCP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
+        }
+
+        const years = [...new Set(filteredData.map(row => row.year))].sort((a, b) => a - b);
         const labels = new Set();
         const xCoords = [];
         const yCoords = [];
@@ -53,6 +327,11 @@
         });
 
         const labelsArray = [...labels];
+
+        const energyWaterNodeColors = labelsArray.map((label) => {
+            const nodeType = getEnergyWaterNodeType(label, filteredData);
+            return energyWaterPalette[nodeType];
+        });
 
         // apply custom coordinates to "Wind" only if the diagram is "Energy & Water"
         if ('Energy & Water' === selectedDiagram) {
@@ -67,17 +346,27 @@
             const values = [];
             const linkColors = [];
             const flowHoverLabels = [];
-            const nodeColors = Array(labelsArray.length).fill(null);
+            const nodeColors = selectedColorPalette === 'energy-water'
+                ? [...energyWaterNodeColors]
+                : Array(labelsArray.length).fill(null);
             
             yearData.forEach(row => {
-                sources.push(labelsArray.indexOf(row.source));
-                targets.push(labelsArray.indexOf(row.target));
+                const sIdx = labelsArray.indexOf(row.source);
+                const tIdx = labelsArray.indexOf(row.target);
+                sources.push(sIdx);
+                targets.push(tIdx);
                 values.push(parseFloat(row.value));
-                linkColors.push(row.link_color);
 
-                nodeColors[labelsArray.indexOf(row.source)] = row.source_color;
-                nodeColors[labelsArray.indexOf(row.target)] = row.target_color;
-                flowHoverLabels.push(parseFloat(row.unit_value));
+                // Color edges by interpolation of source and target color
+                linkColors.push(getLinkColor(row, selectedColorPalette));
+
+                // Preserve original node colors for interpolation/source modes.
+                // The fixed Energy & Water palette already assigned node colors above.
+                if (selectedColorPalette !== 'energy-water') {
+                    if (row.source_color) nodeColors[sIdx] = row.source_color;
+                    if (row.target_color) nodeColors[tIdx] = row.target_color;
+                }
+                flowHoverLabels.push(parseFloat(row.unit_value ?? row.value));
             });
 
             frames.push({
@@ -103,7 +392,6 @@
                         color: linkColors,
                         customdata: flowHoverLabels,
                         hovertemplate: "Source: %{source.label}<br>Target: %{target.label}<br>Value: %{customdata}<extra></extra>"
-
                     }
                 }]
             });
@@ -112,13 +400,82 @@
         return { frames, labels: labelsArray };
     }
 
+    async function loadGcamEnergyData() {
+    if (gcamEnergyData || isLoadingEnergyData) return;
+
+    isLoadingEnergyData = true;
+
+    try {
+        const response = await fetch(`${base}/gcam_usa_energy.parquet`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch parquet file: ${response.status}`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+
+        let parsedRows = [];
+
+        await parquetRead({
+            file: arrayBuffer,
+            rowFormat: 'object',
+            onComplete: (data) => {
+                parsedRows = data;
+            }
+        });
+
+        console.log('Parquet rows:', parsedRows.length);
+        console.log('First parquet row:', parsedRows[0]);
+        console.log(
+            'Scenarios found:',
+            [...new Set(parsedRows.map((r) => r.scenario))]
+        );
+
+        // Data needed for the Sankey itself
+        gcamEnergyData = parsedRows.filter(
+            (r) =>
+                r.source &&
+                r.target &&
+                r.year != null &&
+                r.scenario &&
+                r.region
+        );
+
+        // Populate scenario options from all loaded rows, not only Sankey-valid rows
+        scenarios = [
+            ...new Set(
+                parsedRows
+                    .map((r) => r.scenario)
+                    .filter((scenario) => scenario != null && scenario !== '')
+            )
+        ].sort();
+
+        if (!selectedScenario && scenarios.length > 0) {
+            selectedScenario = scenarios[0];
+        }
+    } catch (error) {
+        console.error('Error loading gcam_usa_energy.parquet:', error);
+    } finally {
+        isLoadingEnergyData = false;
+    }
+}
+
     // Energy-water Sankey
-    function initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits) {
-        const { frames, labels } = generateSankeyFrames(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits);
+    function initializeHybridSankey(data, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits, currentSelectedStates, selectedScenario, currentDetailLevel, selectedColorPalette) {
+        const { frames, labels } = generateSankeyFrames(data, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits, currentSelectedStates, selectedScenario, currentDetailLevel, selectedColorPalette);
+        if (!frames || frames.length === 0) return;
         const initialFrame = frames[0];
 
+        const stateLabel = currentSelectedStates.length === 1 
+            ? currentSelectedStates[0] 
+            : `${currentSelectedStates.length} Selected States (${currentSelectedStates.join(', ')})`;
+
+        const detailName = (detailLevels.find(d => d.value === currentDetailLevel) || {}).label || currentDetailLevel;
+
         const layout = {
-            title: `${diagramMapping[selectedDiagram]} Sankey Diagram for the United States`,
+            title: selectedDiagram === 'Energy' 
+                ? `Energy Sankey Diagram for ${currentSelectedStates.length === 1 ? currentSelectedStates[0] : 'Selected Region'}` 
+                : `${diagramMapping[selectedDiagram]} Sankey Diagram for the United States`,
             font: { size: 14 },
             sliders: [{
                 steps: frames.map(frame => ({
@@ -148,36 +505,44 @@
                         args: [[null], { mode: "immediate", frame: { duration: 0, redraw: false }, transition: { duration: 0 } }]
                     }
                 ],
-                    // button position
-                    x: 0,
-                    y: 0, 
-                    pad: {t: 10, r: 10}
+                x: 0,
+                y: 0, 
+                pad: {t: 10, r: 10}
             }],
             annotations: [
-            {
-                text: `${rcpMapping[selectedRCP]} Fossil-fuel Emphasis & ${sspMapping[selectedSSP]} Population and Economic Growth Scenario`,
-                x: 0.5,
-                y: 1.05,
-                xref: "paper",
-                yref: "paper",
-                showarrow: false,
-                font: {
-                    size: 16,
-                    color: "gray"
-                },
-                align: "center"
-            }
-        ],
+                {
+                    text: selectedDiagram === 'Energy'
+                        ? `Scenario: ${selectedScenario} | States: ${stateLabel} | Level of Detail: ${detailName}`
+                        : `${rcpMapping[selectedRCP]} Fossil-fuel Emphasis & ${sspMapping[selectedSSP]} Population and Economic Growth Scenario`,
+                    x: 0.5,
+                    y: 1.05,
+                    xref: "paper",
+                    yref: "paper",
+                    showarrow: false,
+                    font: {
+                        size: 14,
+                        color: "gray"
+                    },
+                    align: "center"
+                }
+            ],
         };
 
-        Plotly.newPlot("hybridSankeyDiagram", initialFrame.data, layout)
+        const thisRender = ++renderCounter;
+        const targetElement = document.getElementById("hybridSankeyDiagram");
+        if (!targetElement) return;
+
+        Plotly.react(targetElement, initialFrame.data, layout)
             .then(() => {
-                Plotly.addFrames("hybridSankeyDiagram", frames);
+                if (thisRender === renderCounter) {
+                    return Plotly.addFrames(targetElement, frames);
+                }
+            })
+            .catch(err => {
+                console.error("Plotly render error:", err);
             });
     }
 
-    // when the page loads into a user's browser (onMount),
-    // fetch the data and store in the the `data` variable defined above
     onMount(() => {
         fetch(`${base}/energy_water_data.csv`).then(response => {
             if (!response.ok) throw new Error("Network response was not ok");
@@ -185,43 +550,45 @@
         }).then(
             d => Papa.parse(d, { header: true }).data
         ).then(d => {
-            // this is the modele scoped `data` variable defined above
             energywaterdata = d;
         }).catch(
             error => console.error("Error loading CSV file:", error)
         );
     });
 
-    // this is how to make a "reactive" construct in svelte, using the $: syntax
-    // the code here will run anytime the referenced, in-scope variables change
-    // (in this case, `data` and `selectedScenario`), but the "if" construct means
-    // we only run initializeSankey if both `data` and `selectedScenario` are "truthy",
-    // meaning they have any non-false, non-zero, non-empty string value;
-    // there are many other ways to use "$:" too
-    $: if (energywaterdata && selectedSSP && selectedRCP && selectedClimate && selectedDiagram && selectedEnergyUnits && selectedWaterUnits) {
-        initializeHybridSankey(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits);
+    $: activeData = selectedDiagram === 'Energy' ? gcamEnergyData : energywaterdata;
+
+    $: if (selectedDiagram === 'Energy' && !gcamEnergyData && !isLoadingEnergyData) {
+        loadGcamEnergyData();
     }
 
-    // var csv = Papa.unparse(filteredData);
+    $: if (activeData && (
+        selectedDiagram === 'Energy'
+            ? (selectedStates.length > 0 && selectedScenario && selectedDetailLevel)
+            : (selectedSSP && selectedRCP && selectedClimate && selectedDiagram && selectedEnergyUnits && selectedWaterUnits)
+    )) {
+        initializeHybridSankey(activeData, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits, selectedStates, selectedScenario, selectedDetailLevel, selectedColorPalette);
+    }
 
-    // var csvData = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-
-    // var csvURL = window.URL.createObjectURL(csvData);
-
-    // var testLink = document.createElement('a');
-
-    // testLink.href = csvURL;
-    // testLink.setAttribute('download', 'test.csv');
-    // testLink.click();
-
-
-    function downloadCSV(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits) {
-        if (!energywaterdata.length) return;
+    function downloadCSV(data, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits, currentSelectedStates, selectedScenario, currentDetailLevel) {
+        if (!data || !data.length) return;
         
-        const selectedUnitsList = [selectedEnergyUnits, selectedWaterUnits];
-        const filteredData = energywaterdata.filter(row => (row.ssp === selectedSSP) && (row.rcp === selectedRCP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
-        
-        const columnsToDownload = ["rcp", 'ssp', "source", "target", "year", "unit_value", "units", "diagram"];
+        let filteredData;
+        let columnsToDownload;
+
+        if (selectedDiagram === 'Energy') {
+            const stateSet = new Set(currentSelectedStates);
+            filteredData = data.filter(row => 
+                stateSet.has(row.region) &&
+                row.scenario === selectedScenario &&
+                (String(row.level) === '0' || String(row.level) === '0.0' || String(row.level) === String(currentDetailLevel))
+            );
+            columnsToDownload = ["scenario", "region", "year", "source", "target", "level", "units", "diagram", "value"];
+        } else {
+            const selectedUnitsList = [selectedEnergyUnits, selectedWaterUnits];
+            filteredData = data.filter(row => (row.ssp === selectedSSP) && (row.rcp === selectedRCP) && (row.climate_sensitivity === selectedClimate) && (row.diagram === selectedDiagram) && (selectedUnitsList.includes(row.units)));
+            columnsToDownload = ["rcp", 'ssp', "source", "target", "year", "unit_value", "units", "diagram"];
+        }
 
         const selectedData = filteredData.map(item => {
             let filteredItem = {};
@@ -229,17 +596,13 @@
                 filteredItem[key] = item[key];
             });
             return filteredItem;
-            });
-
-        // Convert data to CSV format
-
+        });
 
         const csv = Papa.unparse(selectedData);
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         
         const link = document.createElement("a");
-        
         link.setAttribute("href", url);
         link.setAttribute("download", "sankey_data_download.csv");
         document.body.appendChild(link);
@@ -249,134 +612,163 @@
     }
 </script>
 
-<!-- Svelte will always rerender the html when variables change reactively -->
-
-
-
 <div class="flex flex-row w-screen">
 
     <div id='scenarioSelectionBar'
-    class="sticky top-0 flex h-full w-full max-w-[21rem] p-7 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2 drop-shadow-xl">
+    class="sticky top-0 flex h-full w-full max-w-[24rem] p-5 flex-col rounded-xl bg-white bg-clip-border text-gray-700 border-2 drop-shadow-xl overflow-y-auto max-h-screen">
     <div class="p-2 mb-2">
         <div class="flex items-center">
-        <h5 class="block font-sans text-xl antialiased font-semibold leading-snug tracking-normal text-blue-gray-900">
-        Scenario Selection 
-        </h5>
-        <!-- <span>
-        <Icon icon="lucide:info" style="font-size: 15px" />
-        </span>  -->
-
+            <h5 class="block font-sans text-xl antialiased font-semibold leading-snug tracking-normal text-blue-gray-900">
+            Scenario Selection 
+            </h5>
         </div>
     </div>
     
-    <nav class="flex min-w-[240px] flex-col gap-3 mb-8 font-sans text-base font-normal text-blue-gray-700">
-        <div role="contentinfo"
-        class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
-        
-        <div class="grid mr-4 place-items-center">
-            <Icon icon="tabler:building-factory" style="font-size: 30px" />
+    {#if selectedDiagram === 'Energy'}
+        <div class="flex flex-col gap-2 mb-4 font-sans text-base font-normal text-blue-gray-700">
+            <div class="flex items-center justify-between">
+                <span class="font-semibold text-sm text-gray-700">Select States ({selectedStates.length}):</span>
+                <div class="flex gap-2 text-xs">
+                    <button type="button" on:click={selectAllStates} class="text-blue-600 hover:underline">All</button>
+                    <span>|</span>
+                    <button type="button" on:click={clearStates} class="text-blue-600 hover:underline">Reset</button>
+                </div>
             </div>
 
-            <div class="group flex relative">
-            <span>Fossil-fuel Emphasis</span> 
-            <!-- <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
-                Projected levels of global warming by 2100 due to changing greenhouse gas concentrations.
-            </span> -->
-            </div>
-            
-        </div>
-        <div class="flex leading-normal pl-16 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
-            <fieldset>
-                <div class="flex flex-row gap-5">
-                {#each rcps as r}
-                <div>
-                    <input type="radio" id={r} name="rcps" value={r} bind:group={selectedRCP}/>
-                    <label for={r}>{rcpMapping[r]}</label>
-                </div>
+            <!-- United States map click-box grid -->
+            <div class="grid grid-cols-12 gap-1 p-2 bg-gray-50 border border-gray-200 rounded-lg select-none">
+                {#each stateGrid as row}
+                    {#each row as cell}
+                        {#if cell}
+                            <button
+                                type="button"
+                                class="h-6 text-[10px] font-bold rounded flex items-center justify-center transition-colors border {selectedStates.includes(cell) ? 'bg-blue-600 text-white border-blue-700 shadow-sm' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100'}"
+                                title={cell}
+                                on:click={(event) => handleStateClick(event, cell)}>
+                                {cell}
+                            </button>
+                        {:else}
+                            <div class="h-6"></div>
+                        {/if}
+                    {/each}
                 {/each}
             </div>
-            </fieldset>
+            <p class="text-xs text-gray-500 italic">Click a state to select/deselect. Shift-click or Ctrl-click to select multiple.</p>
         </div>
-        
 
-        <div role="contentinfo"
-        class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
-        <div class="grid mr-4 place-items-center">
-        <Icon icon="ix:user-management" style="font-size: 30px" />
+        <div class="flex flex-col gap-2 mb-4 font-sans text-base font-normal text-blue-gray-700">
+            <label for="scenario-select" class="font-semibold text-sm text-gray-700">Select Scenario:</label>
+            <select id="scenario-select" bind:value={selectedScenario} class="border border-gray-300 rounded p-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {#each scenarios as sc}
+                    <option value={sc}>{sc}</option>
+                {/each}
+            </select>
         </div>
-        <div class="group flex relative">
-            <span>Population & Economic Growth</span> 
-            <!-- <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
-                Projected global population and economy dynamics.
-            </span> -->
-        </div>
-    </div>
 
-    <div class="flex leading-normal pl-16 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
-        <fieldset>
-            <div class="flex flex-row gap-5">
-            {#each ssps as s}
-            <div>
-                <input type="radio" id={s} name="ssps" value={s} bind:group={selectedSSP}/>
-                <label for={s}>{sspMapping[s]}</label>
+        <div class="flex flex-col gap-2 mb-6 font-sans text-base font-normal text-blue-gray-700">
+            <span class="font-semibold text-sm text-gray-700">Level of Detail:</span>
+            <div class="flex flex-row gap-4 pt-1">
+                {#each detailLevels as lvl}
+                    <div class="flex items-center gap-1">
+                        <input type="radio" id={'detail-level-' + lvl.value} name="detailLevels" value={lvl.value} bind:group={selectedDetailLevel}/>
+                        <label for={'detail-level-' + lvl.value}>{lvl.label}</label>
+                    </div>
+                {/each}
             </div>
-            {/each}
         </div>
-        </fieldset>
-    </div>
-    <!-- <div role="contentinfo"
-    class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
-    <div class="grid mr-4 place-items-center">
-        <Icon icon="ix:cloud" style="font-size: 30px" />
-        </div>
-        <div class="group flex relative">
-            <span>Climate Model Sensitivity</span> 
-            <span class="absolute bottom-10 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
-                Projected change in climate in response to greenhouse gas emissions.
-            </span>
+    {:else}
+        <nav class="flex min-w-[240px] flex-col gap-3 mb-8 font-sans text-base font-normal text-blue-gray-700">
+            <div role="contentinfo"
+            class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+                <div class="grid mr-4 place-items-center">
+                    <Icon icon="tabler:building-factory" style="font-size: 30px" />
+                </div>
+                <div class="group flex relative">
+                    <span>Fossil-fuel Emphasis</span> 
+                </div>
             </div>
-    </div>
+            <div class="flex leading-normal pl-16 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+                <fieldset>
+                    <div class="flex flex-row gap-5">
+                    {#each rcps as r}
+                    <div>
+                        <input type="radio" id={r} name="rcps" value={r} bind:group={selectedRCP}/>
+                        <label for={r}>{rcpMapping[r]}</label>
+                    </div>
+                    {/each}
+                    </div>
+                </fieldset>
+            </div>
 
-    <div class="flex leading-normal pl-16 font-light h-1 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
-        <fieldset>
-            <div class="flex flex-row gap-5">
-            {#each climates as c}
-            <div>
-                <input type="radio" id={c} name="climates" value={c} bind:group={selectedClimate}/>
-                <label for={c}>{climateMapping[c]}</label>
+            <div role="contentinfo"
+            class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
+                <div class="grid mr-4 place-items-center">
+                    <Icon icon="ix:user-management" style="font-size: 30px" />
+                </div>
+                <div class="group flex relative">
+                    <span>Population & Economic Growth</span> 
+                </div>
             </div>
-            {/each}
-        </div>
-        </fieldset>
-    </div> -->
+
+            <div class="flex leading-normal pl-16 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
+                <fieldset>
+                    <div class="flex flex-row gap-5">
+                    {#each ssps as s}
+                    <div>
+                        <input type="radio" id={s} name="ssps" value={s} bind:group={selectedSSP}/>
+                        <label for={s}>{sspMapping[s]}</label>
+                    </div>
+                    {/each}
+                    </div>
+                </fieldset>
+            </div>
+        </nav>
+    {/if}
+
     <div class="pt-9 ">
         <h5 class="block font-sans text-xl antialiased font-semibold tracking-normal text-blue-gray-900">
         Visualization Options
         </h5>
     </div>
+    <div class="flex flex-col gap-2 px-3 pb-4 font-sans text-base font-normal text-blue-gray-700">
+        <label for="color-palette-select" class="font-semibold text-sm text-gray-700">
+            Edge Color Palette:
+        </label>
+    
+        <select
+            id="color-palette-select"
+            bind:value={selectedColorPalette}
+            class="border border-gray-300 rounded p-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+            {#each colorPalettes as palette}
+                <option value={palette.value}>
+                    {palette.label}
+                </option>
+            {/each}
+        </select>
+    </div>
+
     <nav class="flex min-w-[240px] flex-col font-sans text-base font-normal text-blue-gray-700">
         <div role="contentinfo"
         class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
-        
-        <div class="grid mr-4 place-items-center">
-            <Icon icon="tabler:mist" style="font-size: 25px" />
+            <div class="grid mr-4 place-items-center">
+                <Icon icon="tabler:mist" style="font-size: 25px" />
             </div>
-
             <div class="group flex relative">
-            <span>Show flows for:</span> 
+                <span>Show flows for:</span> 
             </div>
         </div>
 
         <div class="flex leading-normal m-8 pl-7 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
             <fieldset>
-                <div class="flex flex-col  top-15 gap-2">
+                <div class="flex flex-col top-15 gap-2">
                 {#each diagrams as s}
                 <div>
                     <input type="radio" id={s} name="diagram" value={s} bind:group={selectedDiagram}/>
                     <label for={s}>{s}</label>
                 </div>
                 {/each}
-            </div>
+                </div>
             </fieldset>
         </div>
     </nav>
@@ -384,13 +776,11 @@
     <nav class="flex min-w-[240px] flex-col font-sans text-base font-normal text-blue-gray-700">
         <div role="contentinfo"
         class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
-        
-        <div class="grid mr-4 place-items-center">
-            <Icon icon="lets-icons:water" style="font-size: 25px" />
+            <div class="grid mr-4 place-items-center">
+                <Icon icon="lets-icons:water" style="font-size: 25px" />
             </div>
-
             <div class="group flex relative">
-            <span>Select Water Units:</span> 
+                <span>Select Water Units:</span> 
             </div>
         </div>
 
@@ -403,7 +793,7 @@
                     <label for={s}>{waterUnitMapping[s]}</label>
                 </div>
                 {/each}
-            </div>
+                </div>
             </fieldset>
         </div>
     </nav>
@@ -411,51 +801,45 @@
     <nav class="flex min-w-[240px] flex-col font-sans text-base font-normal text-blue-gray-700">
         <div role="contentinfo"
         class="flex items-center w-full p-3 leading-tight transition-all rounded-lg outline-none text-start hover:bg-blue-gray-50 hover:bg-opacity-80 hover:text-blue-gray-900 focus:bg-blue-gray-50 focus:bg-opacity-80 focus:text-blue-gray-900 active:bg-blue-gray-50 active:bg-opacity-80 active:text-blue-gray-900">
-        
-        <div class="grid mr-4 place-items-center">
-            <Icon icon="nimbus:fire" style="font-size: 25px" />
+            <div class="grid mr-4 place-items-center">
+                <Icon icon="nimbus:fire" style="font-size: 25px" />
             </div>
-
             <div class="group flex relative">
-            <span>Select Energy Units:</span> 
+                <span>Select Energy Units:</span> 
             </div>
         </div>
 
         <div class="flex leading-normal m-8 pl-7 font-light h-6 bg-[#FFFFFF] items-center gap-8 text-[#000000]">
             <fieldset>
-                <div class="flex flex-col  top-15 gap-2">
+                <div class="flex flex-col top-15 gap-2">
                 {#each energy_units as s}
                 <div>
                     <input type="radio" id={s} name="energyUnits" value={s} bind:group={selectedEnergyUnits}/>
                     <label for={s}>{energyUnitMapping[s]}</label>
                 </div>
                 {/each}
-            </div>
+                </div>
             </fieldset>
         </div>
 
-    <div class="pt-8">
-    <button on:click={() => downloadCSV(energywaterdata, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits)} class="bg-gray-200 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center">
-            <svg class="fill-current w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/></svg>
-            <span>Download Selected Data</span>
-    </button>
-    </div>
+        <div class="pt-8">
+            <button on:click={() => downloadCSV(activeData, selectedSSP, selectedRCP, selectedClimate, selectedDiagram, selectedEnergyUnits, selectedWaterUnits, selectedStates, selectedScenario, selectedDetailLevel)} class="bg-gray-200 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center">
+                <svg class="fill-current w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/></svg>
+                <span>Download Selected Data</span>
+            </button>
+        </div>
     </nav>
 
-
-
-</div>
-
-    
-    
-    <!-- Sankey placement -->
-
-
-    <div id="sankeyWrapper" class="h-full w-full min-h-[800px] flex flex-col items-stretch flex-1 m-0 p-0">
-        <div id="hybridSankeyDiagram" class="w-full min-h-[800px] m-0 p-0"></div> 
     </div>
 
-
+    <!-- Sankey placement -->
+    <div id="sankeyWrapper" class="h-full w-full min-h-[800px] flex flex-col items-stretch flex-1 m-0 p-0">
+        {#if isLoadingEnergyData}
+            <div class="flex items-center justify-center min-h-[800px]">
+                <p class="text-xl text-gray-600">Loading Energy data...</p>
+            </div>
+        {/if}
+        <div id="hybridSankeyDiagram" class="w-full min-h-[800px] m-0 p-0" class:hidden={isLoadingEnergyData}></div> 
+    </div>
 
 </div>
-
